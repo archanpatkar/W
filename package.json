@@ -1,0 +1,27 @@
+{
+  "name": "wscript",
+  "version": "1.0.0",
+  "description": "A language for fast computation inspired by C and Javascript compiles to WASM designed to be used in conjunction with Javascript",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/archanpatkar/WScript.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/archanpatkar/WScript/issues"
+  },
+  "homepage": "https://github.com/archanpatkar/WScript#readme",
+  "devDependencies": {
+    "jest": "^26.6.3",
+    "standard": "^16.0.3"
+  },
+  "dependencies": {
+    "binaryen": "^98.0.0",
+    "styp": "^0.0.1"
+  }
+}
