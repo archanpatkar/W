@@ -9,6 +9,10 @@ const ast = sum("Node", {
     ifcons: ["cond","b1","b2"],
     whilecons: ["cond","body"],
     forcons: ["var","cond","upd","body"],
-    functioncons: ["name","params","body"]
+    parameter: ["identifier","type"],
+    functioncons: ["name","params","body"],
+    lambda: ["params","body"]
     // Add more ast nodes....
 });
+
+module.exports = ast;
