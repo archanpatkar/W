@@ -11,17 +11,23 @@ const termend = [")","}","]",";",","];
 const bop = ["+","-","*","/","&","|","<",">","="];
 const uop = ["-","~"];
 const kwc = ["true","false","null","this"];
+
 const kwc_map = {
     "true": 1,
     "false": 0,
     "null": 0
 };
+
 const stp = {
     "let": "compileLetStatement",
     "if": "compileIfStatement",
     "while": "compileWhileStatement",
     "do": "compileDoStatement",
-    "return": "compileReturnStatement"
+    "return": "compileReturnStatement"    
+};
+
+const prec = {
+    
 };
 
 class Compiler {
