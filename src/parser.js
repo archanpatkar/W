@@ -1,6 +1,12 @@
-const fs = require("fs");
 const Tokenizer = require("./tokenizer");
 const SymbolTable = require("./symtab");
+// WIP
+const Type = require("./type");
+const Optimizer = require("./optimizer");
+const CodeGen = require("./codegen");
+const { kw_map } = require("./tokens");
+// *********
+
 // const VMEmitter = require("./vmcode");
 
 // Placeholder code
@@ -391,31 +397,4 @@ class Compiler {
     }
 }
 
-function main(args) {
-    if(fs.existsSync(args[0]) && fs.lstatSync(args[0]).isDirectory()) {
-        const files = fs.readdirSync(args[0]).filter(f => f.endsWith(".jack"));
-        const path = args[0].endsWith("/")?args[0]:`${args[0]}/`;
-        console.log("Compiling...");
-        files.map(file => {
-            console.log(file);
-            const filename = file.split(".")[0];
-            const code = fs.readFileSync(`${path}${file}`).toString();
-            const output = new Compiler(code).compile();
-            fs.writeFileSync(`${path}${filename}.vm`,output);
-        });
-    }
-    else {
-        console.log("Compiling...");
-        const dirs = args[0].split("/");
-        const filename = dirs[dirs.length-1].split(".")[0];
-        console.log(filename);
-        const code = fs.readFileSync(args[0]).toString();
-        const output = new Compiler(code).compile();
-        dirs.pop();
-        const path = dirs.join("/");
-        fs.writeFileSync(`${path}/${filename}.vm`,output);
-    }
-}
-
-main(process.argv.slice(2));
 module.exports = Compiler;

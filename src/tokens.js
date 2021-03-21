@@ -33,9 +33,9 @@ const white = [" ", "\b", "\t", "\r"];
 
 const digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-// const kw_map = {
-//     fn:
-// }
+const kw_map = {
+    fn:""
+}
 
 const n_chmap = {
     DOT:".",
@@ -62,5 +62,6 @@ module.exports = {
     keywords: keywords,
     symbols: symbols,
     token: token,
-    toktypes:toktypes
+    toktypes:toktypes,
+    kw_map:kw_map
 };
