@@ -1,4 +1,4 @@
-const {  token, n_chmap, white, keywords, digits, symbols } = require("tokens");
+const {  token, n_chmap, white, keywords, digits, symbols } = require("./tokens");
 
 class Tokenizer {
 
@@ -21,9 +21,7 @@ class Tokenizer {
 
     constructor(code) {
         this.code = code;
-        this.stream = this.tokenize();
-        this.done = false;
-        this.curr = [this.stream.next()];
+        this.tbuff = [];
         this.ch = null;
         this.curr = 0;
         this.row = 1;
@@ -32,8 +30,7 @@ class Tokenizer {
 
     reset(code) {
         this.code = code;
-        this.stream = this.tokenize();
-        this.curr = [this.stream.next()];
+        this.tbuff = [];
         this.ch = null;
         this.curr = 0;
         this.row = 1;
@@ -41,6 +38,7 @@ class Tokenizer {
     }
 
     generate_error(token,message) {
+        // create the error string based on row and column number
 
     }
 
@@ -58,7 +56,7 @@ class Tokenizer {
     whitespace() {
         let buff = "";
         this.col = this.curr+1;
-        while(this.curr < this.code.length && isWhite(ch=this.code[this.curr])) {
+        while(this.curr < this.code.length && Tokenizer.isWhite(this.ch=this.code[this.curr])) {
             this.curr++;
             buff += this.ch;
         }
@@ -69,7 +67,7 @@ class Tokenizer {
         this.col = this.curr+1;
         let v = this.code[++this.curr];
         this.ch = this.code[++this.curr];
-        if(ch != "'") {
+        if(this.ch != "'") {
             // throw an error!
         }
         this.curr++;
@@ -82,7 +80,7 @@ class Tokenizer {
         this.col = this.curr+1;
         while(this.ch !== '"' && this.curr < this.code.length) {
             buff += this.ch
-            ch = this.code[++this.curr];
+            this.ch = this.code[++this.curr];
         }
         this.curr++;
         return this.createtok("stringConstant",buff);
@@ -98,7 +96,7 @@ class Tokenizer {
             n += this.ch;
             this.ch = this.code[++this.curr];
         }
-        while (isNumber(ch)) {
+        while (Tokenizer.isNumber(this.ch)) {
             n += this.ch;
             this.ch = this.code[++this.curr];
             if(this.ch == ".") {
@@ -139,7 +137,7 @@ class Tokenizer {
     iden_kw() {
         n = "" + ch;
         ch = string[++curr];
-        while (isAlphabet(ch) || ch == "_") {
+        while (Tokenizer.isAlphabet(ch) || ch == "_") {
             n += ch;
             ch = string[++curr];
         }
@@ -153,48 +151,48 @@ class Tokenizer {
     }
 
     tokenize(string=this.code) {
-        while (this.curr < this.code.length) {
-            this.ch = string[this.curr];
-            if(this.ch === "\n") yield this.newline();
-            else if (isWhite(this.ch)) yield this.whitespace();
-            else if(this.ch === "'") yield this.char();
-            else if(this.ch === '"') yield this.string();
-            else if (symbols.includes(this.ch)) yield this.symbols();
-            else if (isNumber(this.ch)) yield this.number();
-            else if (isAlphabet(this.ch) || this.ch == "_") yield this.iden_kw();
+        if (this.curr < this.code.length) {
+            this.ch = this.code[this.curr];
+            if(this.ch === "\n") return this.newline();
+            else if (Tokenizer.isWhite(this.ch)) return this.whitespace();
+            else if(this.ch === "'") return this.char();
+            else if(this.ch === '"') return this.string();
+            else if (symbols.includes(this.ch)) return this.symbols();
+            else if (Tokenizer.isNumber(this.ch)) return this.number();
+            else if (Tokenizer.isAlphabet(this.ch) || this.ch == "_") return this.iden_kw();
             else this.unknown_ch();
         }
-        return token("EOF",0,0,0,0);
+        return this.createtok("EOF",0);
     }
 
     peek(n=0) { 
         if(n) {
-            if(this.curr.length < n) 
-                for(let i = 0;(i < n) && !this.done;i++) this.curr.push(this.pulltok());
+            if(this.tbuff.length < n) 
+                for(let i = 0;(i < n) && this.curr < this.code.length;i++) this.tbuff.push(this.tokenize());
             return this.curr[n-1];
         } 
         return this.curr[0];
     }
 
     next() { 
-        let temp = this.curr.shift();
-        if(!this.curr.length && !this.done) 
-            this.curr.push(this.pulltok());
+        if(this.curr < this.code.length && !this.tbuff.length) 
+            this.tbuff.push(this.tokenize());
+        let temp = this.tbuff.shift();
         return temp;
     }
 }
 
 module.exports = Tokenizer;
 
-const t1 = new Tokenizer(
-`       10      20 22   2223  40  
-    2.344 6.75 982.34
-    "hello this is archan patkar"
-    'a' 'r' 'p'
-`
-);
-let tk = t1.next();
-while(tk.type != "EOF") {
-    console.log(tk.toString())
-    tk = t1.next();
-}
+// const t1 = new Tokenizer(
+// `       10      20 22   2223  40  
+//     2.344 6.75 982.34
+//     "hello this is archan patkar"
+//     'a' 'r' 'p'
+// `
+// );
+// let tk = t1.next();
+// while(tk.type != "EOF") {
+//     console.log(tk.toString())
+//     tk = t1.next();
+// }
