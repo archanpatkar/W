@@ -1,201 +1,170 @@
-const { tagged } = require("styp");
-
-const token = tagged("Token",["type","value","scol","ecol","row"]);
-
-const symbols = [
-    "(", ")", "{", "}", "[", "]", ";",
-    ".", "+", "-", "/", "*", ",", "=",
-    "&", "|", "<", ">", "=", "~"
-];
-const keywords = [
-    "class", "constructor", "fn", "this", "const",
-    "null", "return", "void", "if", "method",
-    "else", "while", "true", "false", "let",
-    "field", "static", "var", "int", "char",
-    "boolean", "do", "and", "or", "not"
-];
-
-// "\n"
-const white = [" ", "\b", "\t", "\r"];
-function isWhite(c) {
-    return white.includes(c);
-}
-
-const digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-function isNumber(c) {
-    return digits.includes(c);
-}
-
-function isAlphabet(c) {
-    if (c) {
-        const av = c.charCodeAt(0);
-        return av >= "a".charCodeAt(0) && av <= "z".charCodeAt(0) ||
-            av >= "A".charCodeAt(0) && av <= "Z".charCodeAt(0);
-    }
-    return false;
-}
-
-// function token(name, value) {
-//     return { type: name, value: value };
-// }
-
-// function tokenize(string) {
-//     const tokens = [];
-//     let ch;
-//     let curr = 0;
-
-//     while (curr < string.length) {
-//         ch = string[curr]
-//         if (isWhite(ch)) curr++;
-//         else if(ch == '"') {
-//             buff = ""
-//             ch = string[++curr]
-//             while(ch !== '"' && curr < string.length) {
-//                 buff += ch
-//                 ch = string[++curr]
-//             }
-//             curr++;
-//             // ch = string[++curr]
-//             tokens.push(token("stringConstant", buff))
-//         }
-//         else if (symbols.includes(ch)) {
-//             curr++;
-//             if(ch === "/") {
-//                 if(string[curr] === "/") {
-//                     ch = string[++curr]
-//                     while(ch != "\n") ch = string[++curr];
-//                     curr++;
-//                 }
-//                 else if(string[curr] === "*") {
-//                     curr++;
-//                     ch = string[++curr];
-//                     while(!(string[curr-1] == "*" && ch == "/")) ch = string[++curr];
-//                     curr++;
-//                 }
-//                 else tokens.push(token("symbol", ch));
-//             }
-//             else tokens.push(token("symbol", ch));
-//         }
-//         else if (isNumber(ch)) {
-//             n = "" + ch;
-//             ch = string[++curr];
-//             while (isNumber(ch)) {
-//                 n += ch;
-//                 ch = string[++curr];
-//             }
-//             tokens.push(token("integerConstant", parseInt(n)));
-//         }
-//         else if (isAlphabet(ch) || ch == "_") {
-//             n = "" + ch;
-//             ch = string[++curr];
-//             while (isAlphabet(ch) || ch == "_") {
-//                 n += ch;
-//                 ch = string[++curr];
-//             }
-//             if (keywords.includes(n)) tokens.push(token("keyword", n));
-//             else tokens.push(token("identifier", n));
-//         }
-//         else curr++;
-//     }
-//     tokens.push(token("EOF",0));
-//     return tokens;
-// }
-
+const {  token, n_chmap, white, keywords, digits, symbols } = require("tokens");
 
 class Tokenizer {
+
+    static isWhite(c) {
+        return white.includes(c);
+    }
+
+    static isNumber(c) {
+        return digits.includes(c);
+    }    
+
+    static isAlphabet(c) {
+        if (c) {
+            const av = c.charCodeAt(0);
+            return av >= "a".charCodeAt(0) && av <= "z".charCodeAt(0) ||
+                av >= "A".charCodeAt(0) && av <= "Z".charCodeAt(0);
+        } 
+        return false;
+    }
+
     constructor(code) {
         this.code = code;
         this.stream = this.tokenize();
         this.done = false;
         this.curr = [this.stream.next()];
+        this.ch = null;
+        this.curr = 0;
+        this.row = 1;
+        this.col = 1;
     }
 
     reset(code) {
         this.code = code;
         this.stream = this.tokenize();
         this.curr = [this.stream.next()];
+        this.ch = null;
+        this.curr = 0;
+        this.row = 1;
+        this.col = 1;
     }
 
-    *tokenize(string=this.code) {
-        let ch;
-        let curr = 0;
-        let row = 1;
-        let col = 1;
-        while (curr < string.length) {
-            ch = string[curr];
-            if(ch === "\n") {
-                row++;
-                col = 0;
-                curr++;
-                yield token("Newline","\n",col,curr,row);
-            }
-            if (isWhite(ch)) {
-                let buff = ""
-                col = curr+1;
-                while(curr < string.length && isWhite(ch=string[curr])) {
-                    curr++;
-                    buff += ch;
-                }
-                yield token("Whitespace",buff,col,curr,row);
-            }
-            else if(ch === "'") {
-                col = curr+1;
-                let v = string[++curr];
-                ch = string[++curr];
-                if(ch != "'") {
-                    // throw an error!
-                }
-                curr++;
-                yield token("charConstant",v,col,curr,row);
-            }
-            else if(ch === '"') {
-                let buff = "";
-                ch = string[++curr];
-                col = curr+1;
-                while(ch !== '"' && curr < string.length) {
-                    buff += ch
-                    ch = string[++curr]
-                }
-                curr++;
-                // ch = string[++curr]
-                yield token("stringConstant",buff,col,curr,row);
-            }
-            else if (isNumber(ch)) {
-                let dot = false;
-                let n = "" + ch;
-                col = curr+1;
-                ch = string[++curr];
-                if(ch == ".") {
+    generate_error(token,message) {
+
+    }
+
+    createtok(name,value) {
+        return token(name,value,this.col,this.curr,this.row);
+    }
+
+    newline() {
+        this.row++;
+        this.col = 0;
+        this.curr++;
+        return this.createtok("Newline","\n");
+    }
+
+    whitespace() {
+        let buff = "";
+        this.col = this.curr+1;
+        while(this.curr < this.code.length && isWhite(ch=this.code[this.curr])) {
+            this.curr++;
+            buff += this.ch;
+        }
+        return this.createtok("Whitespace",buff);
+    }
+
+    char() {
+        this.col = this.curr+1;
+        let v = this.code[++this.curr];
+        this.ch = this.code[++this.curr];
+        if(ch != "'") {
+            // throw an error!
+        }
+        this.curr++;
+        return this.createtok("charConstant",v);
+    }
+
+    string() {
+        let buff = "";
+        this.ch = this.code[++this.curr];
+        this.col = this.curr+1;
+        while(this.ch !== '"' && this.curr < this.code.length) {
+            buff += this.ch
+            ch = this.code[++this.curr];
+        }
+        this.curr++;
+        return this.createtok("stringConstant",buff);
+    }
+
+    number() {
+        let dot = false;
+        let n = "" + this.ch;
+        this.col = this.curr+1;
+        this.ch = this.code[++this.curr];
+        if(this.ch == ".") {
+            dot = true;
+            n += this.ch;
+            this.ch = this.code[++this.curr];
+        }
+        while (isNumber(ch)) {
+            n += this.ch;
+            this.ch = this.code[++this.curr];
+            if(this.ch == ".") {
+                if(!dot) {
                     dot = true;
-                    n += ch;
-                    ch = string[++curr];
+                    n += this.ch;
+                    this.ch = this.code[++this.curr];
                 }
-                while (isNumber(ch)) {
-                    n += ch;
-                    ch = string[++curr];
-                    if(ch == ".") {
-                        if(!dot) {
-                            dot = true;
-                            n += ch;
-                            ch = string[++curr];
-                        }
-                        else { 
-                            // Throw lex error 
-                            throw new Error("LEX ERROR: using more than one dot on numbers!");
-                        }
-                    }
+                else { 
+                    // Throw lex error 
+                    throw new Error("LEX ERROR: using more than one dot on numbers!");
                 }
-                if(dot) yield token("floatConstant",parseFloat(n),col,curr,row);
-                else yield token("intConstant",parseInt(n),col,curr,row);
             }
         }
-        return token("EOF",0,0,0,0);
+        if(dot) return this.createtok("floatConstant",parseFloat(n));
+        return this.createtok("intConstant",parseInt(n));
     }
 
-    pulltok() {
-        const tk = this.stream.next()
-        this.done = tk.done;
-        return tk.value;
+    symbols() {
+        this.curr++;
+        if(this.ch === "/") {
+            if(this.code[this.curr] === "/") {
+                this.ch = this.code[++this.curr]
+                while(this.ch != "\n") this.ch = this.code[++this.curr];
+                this.curr++;
+            }
+            else if(this.code[this.curr] === "*") {
+                this.curr++;
+                this.ch = this.code[++this.curr];
+                while(!(this.code[this.curr-1] == "*" && this.ch == "/")) this.ch = this.code[++this.curr];
+                this.curr++;
+            }
+            else return this.createtok("symbol", ch);
+        }
+        return this.createtok("symbol", ch);
+    }
+
+    iden_kw() {
+        n = "" + ch;
+        ch = string[++curr];
+        while (isAlphabet(ch) || ch == "_") {
+            n += ch;
+            ch = string[++curr];
+        }
+        if (keywords.includes(n)) tokens.push(token("keyword", n));
+        else tokens.push(token("identifier", n));
+    }
+
+    unknown_ch() {
+        // Throw an error
+        throw new Error(`Unrecognized Symbol '${this.ch}'`)
+    }
+
+    tokenize(string=this.code) {
+        while (this.curr < this.code.length) {
+            this.ch = string[this.curr];
+            if(this.ch === "\n") yield this.newline();
+            else if (isWhite(this.ch)) yield this.whitespace();
+            else if(this.ch === "'") yield this.char();
+            else if(this.ch === '"') yield this.string();
+            else if (symbols.includes(this.ch)) yield this.symbols();
+            else if (isNumber(this.ch)) yield this.number();
+            else if (isAlphabet(this.ch) || this.ch == "_") yield this.iden_kw();
+            else this.unknown_ch();
+        }
+        return token("EOF",0,0,0,0);
     }
 
     peek(n=0) { 
