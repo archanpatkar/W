@@ -1,4 +1,12 @@
-const {  token, n_chmap, white, keywords, digits, symbols } = require("./tokens");
+const {  
+    token, 
+    toktypes,
+    n_chmap, 
+    white, 
+    keywords, 
+    digits, 
+    symbols
+} = require("./tokens");
 
 class Tokenizer {
 
@@ -50,7 +58,7 @@ class Tokenizer {
         this.row++;
         this.col = 0;
         this.curr++;
-        return this.createtok("Newline","\n");
+        return this.createtok(toktypes.newline,n_chmap.NL);
     }
 
     whitespace() {
@@ -60,7 +68,7 @@ class Tokenizer {
             this.curr++;
             buff += this.ch;
         }
-        return this.createtok("Whitespace",buff);
+        return this.createtok(toktypes.whitespace,buff);
     }
 
     char() {
@@ -71,7 +79,7 @@ class Tokenizer {
             // throw an error!
         }
         this.curr++;
-        return this.createtok("charConstant",v);
+        return this.createtok(toktypes.char,v);
     }
 
     string() {
@@ -83,7 +91,7 @@ class Tokenizer {
             this.ch = this.code[++this.curr];
         }
         this.curr++;
-        return this.createtok("stringConstant",buff);
+        return this.createtok(toktypes.string,buff);
     }
 
     number() {
@@ -91,7 +99,7 @@ class Tokenizer {
         let n = "" + this.ch;
         this.col = this.curr+1;
         this.ch = this.code[++this.curr];
-        if(this.ch == ".") {
+        if(this.ch == n_chmap.DOT) {
             dot = true;
             n += this.ch;
             this.ch = this.code[++this.curr];
@@ -99,7 +107,7 @@ class Tokenizer {
         while (Tokenizer.isNumber(this.ch)) {
             n += this.ch;
             this.ch = this.code[++this.curr];
-            if(this.ch == ".") {
+            if(this.ch == n_chmap.DOT) {
                 if(!dot) {
                     dot = true;
                     n += this.ch;
@@ -111,38 +119,39 @@ class Tokenizer {
                 }
             }
         }
-        if(dot) return this.createtok("floatConstant",parseFloat(n));
-        return this.createtok("intConstant",parseInt(n));
+        if(dot) return this.createtok(toktypes.float,parseFloat(n));
+        return this.createtok(toktypes.integer,parseInt(n));
     }
 
     symbols() {
         this.curr++;
-        if(this.ch === "/") {
-            if(this.code[this.curr] === "/") {
+        if(this.ch === n_chmap.SLASH) {
+            if(this.code[this.curr] === n_chmap.SLASH) {
                 this.ch = this.code[++this.curr]
-                while(this.ch != "\n") this.ch = this.code[++this.curr];
+                while(this.ch != n_chmap.NL) this.ch = this.code[++this.curr];
                 this.curr++;
             }
-            else if(this.code[this.curr] === "*") {
+            else if(this.code[this.curr] === n_chmap.STAR) {
                 this.curr++;
                 this.ch = this.code[++this.curr];
-                while(!(this.code[this.curr-1] == "*" && this.ch == "/")) this.ch = this.code[++this.curr];
+                while(!(this.code[this.curr-1] == n_chmap.STAR && this.ch == n_chmap.SLASH)) 
+                    this.ch = this.code[++this.curr];
                 this.curr++;
             }
-            else return this.createtok("symbol", ch);
+            else return this.createtok(toktypes.symbol, ch);
         }
-        return this.createtok("symbol", ch);
+        return this.createtok(toktypes.symbol, ch);
     }
 
     iden_kw() {
         n = "" + ch;
         ch = string[++curr];
-        while (Tokenizer.isAlphabet(ch) || ch == "_") {
+        while (Tokenizer.isAlphabet(ch) || ch == n_chmap.UNDERSCORE) {
             n += ch;
             ch = string[++curr];
         }
-        if (keywords.includes(n)) tokens.push(token("keyword", n));
-        else tokens.push(token("identifier", n));
+        if (keywords.includes(n)) tokens.push(token(toktypes.keyword, n));
+        else tokens.push(token(toktypes.identifier, n));
     }
 
     unknown_ch() {
@@ -153,16 +162,16 @@ class Tokenizer {
     tokenize(string=this.code) {
         if (this.curr < this.code.length) {
             this.ch = this.code[this.curr];
-            if(this.ch === "\n") return this.newline();
+            if(this.ch === n_chmap.NL) return this.newline();
             else if (Tokenizer.isWhite(this.ch)) return this.whitespace();
-            else if(this.ch === "'") return this.char();
-            else if(this.ch === '"') return this.string();
+            else if(this.ch === n_chmap.SQuote) return this.char();
+            else if(this.ch === n_chmap.DQuote) return this.string();
             else if (symbols.includes(this.ch)) return this.symbols();
             else if (Tokenizer.isNumber(this.ch)) return this.number();
-            else if (Tokenizer.isAlphabet(this.ch) || this.ch == "_") return this.iden_kw();
+            else if (Tokenizer.isAlphabet(this.ch) || this.ch == n_chmap.UNDERSCORE) return this.iden_kw();
             else this.unknown_ch();
         }
-        return this.createtok("EOF",0);
+        return this.createtok(n_chmap.EOF,0);
     }
 
     peek(n=0) { 
@@ -183,16 +192,3 @@ class Tokenizer {
 }
 
 module.exports = Tokenizer;
-
-// const t1 = new Tokenizer(
-// `       10      20 22   2223  40  
-//     2.344 6.75 982.34
-//     "hello this is archan patkar"
-//     'a' 'r' 'p'
-// `
-// );
-// let tk = t1.next();
-// while(tk.type != "EOF") {
-//     console.log(tk.toString())
-//     tk = t1.next();
-// }
