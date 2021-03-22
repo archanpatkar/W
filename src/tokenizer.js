@@ -7,7 +7,7 @@ const {
     digits, 
     symbols
 } = require("./tokens");
-
+                                                                                                                                          
 class Tokenizer {
 
     static isWhite(c) {
@@ -144,11 +144,11 @@ class Tokenizer {
     }
 
     iden_kw() {
-        n = "" + ch;
-        ch = string[++curr];
-        while (Tokenizer.isAlphabet(ch) || ch == n_chmap.UNDERSCORE) {
-            n += ch;
-            ch = string[++curr];
+        let n = "" + this.ch;
+        this.ch = this.code[++this.curr];
+        while (Tokenizer.isAlphabet(this.ch) || this.ch == n_chmap.UNDERSCORE) {
+            n += this.ch;
+            this.ch = this.code[++this.curr];
         }
         if (keywords.includes(n)) tokens.push(token(toktypes.keyword, n));
         else tokens.push(token(toktypes.identifier, n));

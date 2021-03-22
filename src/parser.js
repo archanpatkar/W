@@ -4,7 +4,7 @@ const SymbolTable = require("./symtab");
 const Type = require("./type");
 const Optimizer = require("./optimizer");
 const CodeGen = require("./codegen");
-const { kw_map } = require("./tokens");
+const { toktypes, kw_map } = require("./tokens");
 // *********
 
 // const VMEmitter = require("./vmcode");
