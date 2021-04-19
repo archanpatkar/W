@@ -23,7 +23,7 @@
     "webpack-cli": "^4.6.0"
   },
   "dependencies": {
-    "binaryen": "^100.0.0",
+    "binaryen": "^101.0.0",
     "styp": "^0.0.2"
   }
 }
