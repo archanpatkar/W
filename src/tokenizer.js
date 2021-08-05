@@ -28,34 +28,43 @@ class Tokenizer {
     }
 
     constructor(code) {
-        this.code = code;
-        this.tbuff = [];
-        this.ch = null;
-        this.curr = 0;
-        this.row = 1;
-        this.col = 1;
+        this.reset(code);
     }
 
     reset(code) {
         this.code = code;
+        this.lines = code.split("\n");
         this.tbuff = [];
         this.ch = null;
+        this.prevCurr = 0;
         this.curr = 0;
         this.row = 1;
         this.col = 1;
     }
 
-    generate_error(token,message) {
-        // create the error string based on row and column number
-
+    generate_error(token,message,context=2,dch="^",mpad=-3) {
+        // creating beautified error string based on row, column number and message
+        let msg = [];
+        const start = token.row-context > 0?token.row-context:1;
+        const end = token.row+context <= this.lines.length?token.row+context:token.row+1;
+        for(let i = start;i < end;i++) {
+            msg.push(`${i}| ${this.lines[i-1]}`)
+            if(i === token.row) {
+                const padding = `${token.row}`.length+token.ecol+2;
+                msg.push(dch.padStart(padding));
+                msg.push("".padStart(padding+mpad) + message);
+            }
+        }
+        throw new Error(msg.join("\n"));
     }
 
-    createtok(name,value) {
-        return token(name,value,this.col,this.curr,this.row);
+    createtok(name,value,offset=0) {
+        return token(name,value,this.col,(this.curr-this.prevCurr)+offset,this.row);
     }
 
     newline() {
         this.row++;
+        this.prevCurr = this.curr;
         this.col = 0;
         this.curr++;
         return this.createtok(toktypes.newline,n_chmap.NL);
@@ -76,7 +85,10 @@ class Tokenizer {
         let v = this.code[++this.curr];
         this.ch = this.code[++this.curr];
         if(this.ch != "'") {
-            // throw an error!
+            this.generate_error(
+                this.createtok("",this.ch,1),
+                "Missing `'` symbol"
+            );
         }
         this.curr++;
         return this.createtok(toktypes.char,v);
@@ -90,35 +102,47 @@ class Tokenizer {
             buff += this.ch
             this.ch = this.code[++this.curr];
         }
+        if(this.ch !== '"') {
+            this.generate_error(
+                this.createtok("",this.ch),
+                'Missing `"` symbol'
+            );
+        }
         this.curr++;
         return this.createtok(toktypes.string,buff);
     }
 
     number() {
-        let dot = false;
+        let dot = 0;
         let n = "" + this.ch;
         this.col = this.curr+1;
         this.ch = this.code[++this.curr];
         if(this.ch == n_chmap.DOT) {
-            dot = true;
+            dot = 1;
             n += this.ch;
             this.ch = this.code[++this.curr];
         }
-        while (Tokenizer.isNumber(this.ch)) {
-            n += this.ch;
-            this.ch = this.code[++this.curr];
-            if(this.ch == n_chmap.DOT) {
-                if(!dot) {
+        while (Tokenizer.isNumber(this.ch) || this.ch === n_chmap.DOT) {
+            if(this.ch === n_chmap.DOT) {
+                if(dot) {
+                    // Throw lex error 
+                    this.curr++;
+                    this.generate_error(
+                        this.createtok("",this.ch),
+                        "Using multiple dots on number literal"
+                    );
+                    // throw new Error("LEX ERROR: using more than one dot on numbers!");
+                }
+                else { 
                     dot = true;
                     n += this.ch;
                     this.ch = this.code[++this.curr];
                 }
-                else { 
-                    // Throw lex error 
-                    throw new Error("LEX ERROR: using more than one dot on numbers!");
-                }
             }
+            n += this.ch;
+            this.ch = this.code[++this.curr];
         }
+        console.log(n)
         if(dot) return this.createtok(toktypes.float,parseFloat(n));
         return this.createtok(toktypes.integer,parseInt(n));
     }
@@ -155,8 +179,10 @@ class Tokenizer {
     }
 
     unknown_ch() {
-        // Throw an error
-        throw new Error(`Unrecognized Symbol '${this.ch}'`)
+        this.generate_error(
+            this.createtok("",this.ch),
+            "Unrecognized Symbol"
+        );
     }
 
     tokenize(string=this.code) {
@@ -189,6 +215,12 @@ class Tokenizer {
         let temp = this.tbuff.shift();
         return temp;
     }
+}
+
+try {
+    console.log(new Tokenizer(`1..4`).next());
+} catch(e) {
+    console.log(e.message);
 }
 
 module.exports = Tokenizer;

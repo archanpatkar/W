@@ -22,8 +22,8 @@ const symbols = [
 ];
 
 const keywords = [
-    "class", "constructor", "fn", "this", "const",
-    "null", "return", "void", "if", "method",
+    "class", "constructor", "fn", "this", "const", 
+    "export", "null", "return", "void", "if", "method",
     "else", "while", "true", "false", "let",
     "field", "static", "var", "int", "char",
     "boolean", "do", "and", "or", "not"
@@ -34,7 +34,7 @@ const white = [" ", "\b", "\t", "\r"];
 const digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 const kw_map = {
-    fn:""
+    fn:"fn"
 }
 
 const n_chmap = {
