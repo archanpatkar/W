@@ -1,7 +1,9 @@
 # W Lang
 A WASM native language
 
-#### `Example Code`
+### Example
+
+#### `W code`
 ```
 const pi: f64 = 3.141;
 
@@ -19,4 +21,12 @@ export fn factorial(n: i32): i32 {
   }
   return n * factorial(n-1);
 }
+```
+
+#### `Javascript Code`
+```javascript
+const module = new WebAssembly.Module(wasmData);
+const instance = new WebAssembly.Instance(module, {});
+console.log(instance.exports.area(3.7));
+console.log(instance.exports.factorial(6));
 ```
