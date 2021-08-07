@@ -4,7 +4,7 @@ const {
     n_chmap, 
     white, 
     keywords, 
-    digits, 
+    // digits, 
     symbols
 } = require("./tokens");
                                                                                                                                           
@@ -15,18 +15,11 @@ class Tokenizer {
     }
 
     static isNumber(c) {
-        return digits.includes(c);
+        return c.match(/[0-9]/)?true:false;
     }    
 
     static isAlphabet(c) {
-        // console.log("yere");
-        // console.log(c);
-        if (c) {
-            const av = c.charCodeAt(0);
-            return av >= "a".charCodeAt(0) && av <= "z".charCodeAt(0) ||
-                av >= "A".charCodeAt(0) && av <= "Z".charCodeAt(0);
-        } 
-        return false;
+        return c.match(/[A-Za-z]/)?true:false;
     }
 
     constructor(code) {
@@ -61,8 +54,6 @@ class Tokenizer {
     }
 
     createtok(name,value,offset=0) {
-        // const temp = token(name,value,this.col,(this.curr-this.prevCurr)+offset,this.row);
-        // console.log(temp);
         return token(name,value,this.col,(this.curr-this.prevCurr)+offset,this.row);
     }
 
@@ -135,7 +126,6 @@ class Tokenizer {
                         this.createtok("",this.ch),
                         "Using multiple dots on number literal"
                     );
-                    // throw new Error("LEX ERROR: using more than one dot on numbers!");
                 }
                 else { 
                     dot = true;
@@ -152,27 +142,15 @@ class Tokenizer {
 
     symbols() {
         this.curr++;
-        // if(this.ch === n_chmap.SLASH) {
-            // if(this.code[this.curr] === n_chmap.SLASH) {
-            //     this.ch = this.code[++this.curr]
-            //     while(this.ch != n_chmap.NL) this.ch = this.code[++this.curr];
-            //     this.curr++;
-            // }
-            // else if(this.code[this.curr] === n_chmap.STAR) {
-            //     this.curr++;
-            //     this.ch = this.code[++this.curr];
-            //     while(!(this.code[this.curr-1] == n_chmap.STAR && this.ch == n_chmap.SLASH)) 
-            //         this.ch = this.code[++this.curr];
-            //     this.curr++;
-            // }
-            // else 
-            // return this.createtok(toktypes.symbol, this.ch);
-        // }
+        // add all the multichar ops!!!
+        if(this.ch === n_chmap.BANG && this.code[this.curr] === n_chmap.ASSGN) 
+            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.NEQ);
+        if(this.ch === n_chmap.GT && this.code[this.curr] === n_chmap.ASSGN) 
+            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.GTE);
+        if(this.ch === n_chmap.LT && this.code[this.curr] === n_chmap.ASSGN) 
+            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.LTE);
         if(this.ch === n_chmap.ASSGN && this.code[this.curr] === n_chmap.ASSGN) 
-        {
-            this.curr++;
-            return this.createtok(toktypes.symbol, n_chmap.EQ);
-        }
+            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.EQ);
         return this.createtok(toktypes.symbol, this.ch);
     }
 
@@ -183,10 +161,6 @@ class Tokenizer {
             n += this.ch;
             this.ch = this.code[++this.curr];
         }
-        // console.log("iden___kw")
-        // console.log(this.ch);
-        // console.log(this.curr);
-        // console.log(this.code.length);
         if (keywords.includes(n)) return this.createtok(toktypes.keyword, n)
         else return this.createtok(toktypes.identifier, n);
     }
@@ -198,9 +172,9 @@ class Tokenizer {
         );
     }
 
+    // add multi line comments
     slinecomment() {
-        this.curr++;
-        this.curr++;
+        this.curr += 2;
         this.ch = this.code[this.curr];
         while(this.ch !== n_chmap.NL) {
             this.curr++;
@@ -208,76 +182,63 @@ class Tokenizer {
         }
     }
 
+    mlinecomment() {
+        this.curr += 2;
+        this.ch = this.code[this.curr];
+        console.log(this.ch);
+        while(
+            (this.curr < this.code.length) && 
+            (this.ch !== n_chmap.STAR) && 
+            (this.code[this.curr + 1] !== n_chmap.SLASH)
+        ) {
+            this.ch = this.code[++this.curr];
+        }
+        this.curr += 2;
+        this.ch = this.code[this.curr];
+    }
+
     tokenize(string=this.code) {
         if (this.curr < this.code.length) {
             this.ch = this.code[this.curr];
             if (this.ch === n_chmap.SLASH && 
                this.code[this.curr+1] === n_chmap.SLASH) this.slinecomment();
+            if (this.ch === n_chmap.SLASH && 
+                this.code[this.curr+1] === n_chmap.STAR) this.mlinecomment();
             if (this.ch === n_chmap.NL) return this.newline();
             if (Tokenizer.isWhite(this.ch)) return this.whitespace();
             if (this.ch === n_chmap.SQUO) return this.char();
             if (this.ch === n_chmap.DQUO) return this.string();
             if (symbols.includes(this.ch)) return this.symbols();
             if (Tokenizer.isNumber(this.ch)) return this.number();
-            if (Tokenizer.isAlphabet(this.ch) || this.ch == n_chmap.UNDERSCORE) return this.iden_kw();
+            if (Tokenizer.isAlphabet(this.ch) || this.ch === n_chmap.UNDERSCORE) return this.iden_kw();
             this.unknown_ch();
         }
         return this.createtok(n_chmap.EOF,0);
     }
 
-    peek(n=1) { 
-        // console.log("entering peek");
-        if(this.tbuff.length < n) {
-            const len = this.tbuff.length;
-            for(let i = 0;i < (n-len);i++) this.tbuff.push(this.tokenize());
-            // console.log("inner");
-            // console.log(this.tbuff);
-            return this.tbuff[n-1];
+    peek(n=1,eatwh=true) { 
+        if(this.tbuff.length-1 < n) {
+            const len = this.tbuff.length-1;
+            for(let i = 0;i < (n-len);i++) {
+                const t = this.tokenize();
+                if(t.type === toktypes.whitespace && eatwh) n++;
+                this.tbuff.push(t);
+            }
+            return this.tbuff[n];
         }
-        // console.log("outer");
-        // console.log(this.tbuff);
-        // console.log("leaving peek");
-        return this.tbuff[n-1];
-        // if(n > 0) {
-        //     const len = this.tbuff.length-1;
-        //     if(len < n) 
-        //     // && this.curr < this.code.length
-        //         for(let i = 0;i < (n-len);i++) this.tbuff.push(this.tokenize());
-        //     console.log(this.tbuff);
-        //     return this.tbuff[n-1];
-        // } 
-        // console.log(this.tbuff);
-        // return this.tbuff[0];
+        return this.tbuff[n];
     }
 
     next() { 
-        if(this.tbuff.length) {
-            let temp = this.tbuff.shift();
+        if(this.tbuff.length === 0) {
+            const top = this.tokenize();
             this.tbuff.push(this.tokenize());
-            // console.log("inside next if");
-            // console.log(temp);
-            return temp;
+            return top;
         }
-        const temp = this.tokenize();
-        // console.log("inside next after if");
-        // console.log(temp);
-        return temp;
-        // if(this.curr < this.code.length && !this.tbuff.length) 
-        // if(this.tbuff.length === 0) 
+        const top = this.tbuff.shift();
+        this.tbuff.push(this.tokenize());
+        return top;
     }
 }
 
-// try {
-//     const t = new Tokenizer(`
-//         // this is a comment
-//         "archan is a string"
-//     `)
-//     console.log(t.next());
-//     console.log(t.next());
-//     console.log(t.next());
-//     console.log(t.next());
-//     console.log(t.next());
-// } catch(e) {
-//     console.log(e.message);
-// }
 module.exports = Tokenizer;

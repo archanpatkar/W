@@ -74,9 +74,6 @@ class SymbolTable {
             if(this.parent) return this.parent.index(name);
             else throw new Error("No such symbol!");
         }
-        console.log("Inside abs index");
-        console.log("name: " + name);
-        console.log(this.table[name]);
         return this.table[name].absIndex !== undefined?this.table[name].absIndex:this.table[name].index;
     }
 }

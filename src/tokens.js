@@ -18,7 +18,8 @@ const toktypes = {
 const symbols = [
     "(", ")", "{", "}", "[", "]", ";",
     ".", "+", "-", "/", "*", ",", "=",
-    "&", "|", "<", ">", "~", ":"
+    "&", "|", "<", ">", "~", ":", "^",
+    "!"
 ];
 
 const keywords = [
@@ -26,11 +27,13 @@ const keywords = [
     "return", "void", "if", "else", "while", 
     "true", "false", "let", "for", "bool", 
     "do", "and", "or", "not", "i32", "i64", "f32", 
-    "f64", "void"
-    // "field", "static", "method", "this", "class", "constructor",
+    "f64", "void", "for"
 ];
-
 // "var",
+
+const kwtypes = [
+    "f64","i32","f32","i64","bool"
+];
 
 const white = [" ", "\b", "\t", "\r"];
 
@@ -65,11 +68,14 @@ const n_chmap = {
     ADD:"+",
     GT:">",
     LT:"<",
+    BANG:"!",
+    HASH:"#",
     SEMICOLON:";",
     NL: "\n",
     DIV: "/",
     MUL: "*",
     SLASH: "/",
+    BSLASH: "\\",
     STAR: "*",
     UNDERSCORE:"_",
     SQUO:"'",
@@ -80,21 +86,21 @@ const n_chmap = {
     RCURB: "}",
     ASSGN:"=",
     EOF:"EOF",
-    EQ: "=="
+    EQ: "==",
+    NEQ: "!=",
+    GTE: ">=",
+    LTE: "<=",
+    POW: "**"
 };
 
-// const ch_nmap = {
-
-// };
-
 module.exports = {
-    white: white,
-    digits: digits,
-    n_chmap: n_chmap,
-    // ch_nmap: ch_nmap,
-    keywords: keywords,
-    symbols: symbols,
-    token: token,
-    toktypes:toktypes,
-    kw_map:kw_map
+    white,
+    digits,
+    n_chmap,
+    keywords,
+    symbols,
+    token,
+    toktypes,
+    kw_map,
+    kwtypes
 };

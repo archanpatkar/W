@@ -12,16 +12,11 @@ const ast = sum("Node", {
     whiledef: ["exp","body"],
     binary: ["op","left","right","type"],
     unary: ["op","right","type"],
-    funccall:["func","args"],
+    funccall: ["func","args"],
     returndef: ["exp"],
     exportdef: ["decl"],
-    // variable: ["identifier"],
-    // post: ["left","op"],
-    // ifcons: ["cond","b1","b2"],
-    // whilecons: ["cond","body"],
+    // dowhilecons: ["cond","body"],
     // forcons: ["var","cond","upd","body"],
-    // parameter: ["identifier","type"],
-    // lambda: ["params","body"]
     // Add more ast nodes....
 });
 
