@@ -1,5 +1,5 @@
 {
-  "name": "wscript",
+  "name": "w",
   "version": "0.0.1",
   "description": "A WASM Native Language",
   "main": "src/cli.js",
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "binaryen": "^101.0.0",
+    "saman": "^0.0.3",
     "styp": "^0.0.2"
   }
 }

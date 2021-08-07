@@ -22,7 +22,7 @@ class SymbolTable {
 
     isDefined(name) {
         if(this.table[name]) return true;
-        else if(this.parent) return this.parent.isDefined(name);
+        // else if(this.parent) return this.parent.isDefined(name);
         return false;
     }
 
@@ -32,6 +32,17 @@ class SymbolTable {
             kind: kind,
             index: this.calc(kind)
         };
+        if(kind === "var" || kind === "constant") {
+            this.table[name].absIndex = this.calc("abs");
+        }
+    }
+
+    allkind(kind) {
+        const buff = [];
+        for(let key in this.table) {
+            if(this.table[key].kind === kind) buff.push(this.table[key])
+        }
+        return buff;
     }
 
     kind(name) {
@@ -56,6 +67,17 @@ class SymbolTable {
             else throw new Error("No such symbol!");
         }
         return this.table[name].index;
+    }
+
+    absIndex(name) {
+        if(!this.table[name]) {
+            if(this.parent) return this.parent.index(name);
+            else throw new Error("No such symbol!");
+        }
+        console.log("Inside abs index");
+        console.log("name: " + name);
+        console.log(this.table[name]);
+        return this.table[name].absIndex !== undefined?this.table[name].absIndex:this.table[name].index;
     }
 }
 

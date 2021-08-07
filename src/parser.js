@@ -1,42 +1,42 @@
-const Tokenizer = require("./tokenizer");
-const SymbolTable = require("./symtab");
 // WIP
-const Type = require("./type");
-const Optimizer = require("./optimizer");
-const CodeGen = require("./codegen");
-const { toktypes, kw_map } = require("./tokens");
-// *********
-
-// const VMEmitter = require("./vmcode");
+const Tokenizer = require("./tokenizer");
+const ast = require("./ast");
+const { types } = require("./type");
+const { toktypes, kw_map, n_chmap } = require("./tokens");
 
 // Placeholder code
 // The new compiler will use a similar structure
 // Will be sandwiching operator precedence parser in between
-
 const termend = [")","}","]",";",","];
-const bop = ["+","-","*","/","&","|","<",">","="];
-const uop = ["-","~"];
-const kwc = ["true","false","null","this"];
+const bop = ["+","-","*","/","<",">","<=",">=","=","==","and","or"];
+// "~","&","|",
+const uop = ["-","not"];
+const kwc = ["true","false",
+// "null"
+];
 
 const kwc_map = {
     "true": 1,
     "false": 0,
-    "null": 0
+    // "null": 0
 };
 
 const stp = {
-    "let": "compileLetStatement",
-    "if": "compileIfStatement",
-    "while": "compileWhileStatement",
-    "do": "compileDoStatement",
-    "return": "compileReturnStatement"    
+    // "let": "compileLetStatement",
+    "if": "parseIfStatement",
+    "while": "parseWhileStatement",
+    // "do": "parseDoStatement",
+    "return": "parseReturnStatement",
+    "{":"parseBlockStatement",
+    "let":"parseVarDec",
+    "const":"parseVarDec",
 };
 
 const prec = {
     
 };
 
-class Compiler {
+class Parser {
     constructor(code) {
         if(code) this.setup(code);
     }
@@ -44,357 +44,467 @@ class Compiler {
     setup(code) {
         this.code = code;
         this.tok = new Tokenizer(code);
-        this.vm = new VMEmitter();
-        this.cst = new SymbolTable(null);
-        this.mst = new SymbolTable(this.cst);
-        this.className = null;
-        this.subName = null;
-        this.subType = null;
-        this.count = {
-            "if":0,
-            "else":0,
-            "while":0,
-        };
+        // this.vm = new VMEmitter();
+        // this.gst = new SymbolTable(null);
+        // this.mst = new SymbolTable(this.cst);
+        // this.className = null;
+        // this.subName = null;
+        // this.subType = null;
+        // this.count = {
+        //     "if":0,
+        //     "else":0,
+        //     "while":0,
+        // };
     }
 
-    expect(val, type) {
-        const curr = this.tok.next();
-        if(curr.value == val || curr.type == type) return curr;
-        throw new SyntaxError(`Expected ${type?type:""} ${val}`);
+    eatWhitespace() {
+        let curr = this.tok.peek();
+        // console.log("before eating white space!");
+        // console.log(this.tok.tbuff);
+        while(curr.type === toktypes.whitespace || curr.type === toktypes.newline) {
+            // console.log("removing");
+            this.tok.next();
+            curr = this.tok.peek();
+            // console.log("lets peek pecker");
+            // console.log(curr);
+        }
+        // console.log("after eating white space!");
+        // console.log(this.tok.tbuff);
     }
 
-    compile(code) {
+    expect(val, type, rmws=false, startp) {
+        let context = 2;
+        if(rmws) this.eatWhitespace();
+        let curr = this.tok.next();
+        if(startp) context = curr.row-startp.row;
+        if(curr.value === val || curr.type === type) return curr;
+        if(curr.type === n_chmap.EOF) this.tok.generate_error(curr, `Unexpected end, expected ${type?type:""} ${val}`,context);
+        this.tok.generate_error(curr, `Expected ${type?type:""} ${val}`,context);
+        // throw new SyntaxError(`Expected ${type?type:""} ${val}`);
+    }
+
+    parse(code) {
         if(this.code || code) {
             if(code) this.setup(code);
-            this.compileClass();
-            return this.vm.compgen();
+            return this.parseModule();
         }
         throw new Error("No code given!");
     }
 
-    compileClass() {
-        this.expect("class");
-        this.className = this.expect(true,"identifier").value;
-        this.expect("{");
-        let curr = this.tok.peek().value;
-        while(curr == "static" || curr == "field") {
-            this.compileClassVarDec();
-            curr = this.tok.peek().value;
-        }
-        curr = this.tok.peek().value;
-        while(curr == "constructor" || 
-              curr == "function" || 
-              curr == "method") {
-            this.compileSubroutineDec();    
-            curr = this.tok.peek().value;
-        }
-        this.expect("}");
-    }
-
-    compileType() {
+    parseType() {
         let curr = this.tok.peek();
-        if(curr.value == "int") 
-            return this.expect("int").value;
-        else if(curr.value == "char") 
-            return this.expect("char").value;
-        else if(curr.value == "boolean") 
-            return this.expect("boolean").value;
-        return this.expect(true,"identifier").value;
+        // console.log("inside type");
+        // console.log(curr);
+        if(curr.value === kw_map.i32)
+            return this.expect(kw_map.i32) && types.i32;     
+        if(curr.value === kw_map.i64)
+            return this.expect(kw_map.i64) && types.i64;
+        if(curr.value === kw_map.f32)
+            return this.expect(kw_map.f32) && types.f32;     
+        if(curr.value === kw_map.f64)
+            return this.expect(kw_map.f64) && types.f64;
+        // else if(curr.value == "char") 
+        //     return this.expect("char").value;
+        if(curr.value == "bool") 
+            return this.expect(kw_map.bool) && types.i32;
+        this.tok.generate_error(curr,"Expected a type");
+        // return this.expect(true,"identifier").value;
     }
 
-    compileClassVarDec() {
-        const kind = this.tok.next().value;
-        const type = this.compileType();
-        let varName = this.expect(true,"identifier").value;
-        this.cst.define(varName,type,kind);
+    parseVarDec(dtype) {
+        this.expect(dtype);
         let curr = this.tok.peek();
-        while(curr.value != ";") {
-            this.expect(",");
-            varName = this.expect(true,"identifier").value;
-            this.cst.define(varName,type,kind);
-            curr = this.tok.peek();
-        }
-        this.expect(";");
-    }
-
-    compileParameterList() {
-        if(this.tok.peek().value !== ")") {
-            let type = this.compileType();
-            if(this.subType == "method") {
-                this.mst.define("this",this.className,"argument");
+        const vars = [];
+        while(curr.value !== n_chmap.SEMICOLON) {
+            this.eatWhitespace();
+            let varName = this.expect(true,toktypes.identifier,true).value;
+            this.eatWhitespace();
+            this.expect(n_chmap.COLON)
+            this.eatWhitespace();
+            const type = this.parseType();
+            // this.gst.define(varName,type,dtype);
+            this.eatWhitespace();
+            let curr;
+            if(dtype === kw_map.const) {
+                curr = this.tok.next();
+                if(curr.value !== n_chmap.ASSGN) this.tok.generate_error(curr,"Initialize the constant variable")
             }
-            let varName = this.expect(true,"identifier").value;
-            this.mst.define(varName,type,"argument");
+            else curr = this.tok.peek();
+            let expr = null;
+            if(curr.value === n_chmap.ASSGN) {
+                this.tok.next();
+                this.eatWhitespace();
+                expr = this.parseExpression();
+                console.log("here!----!");
+                console.log(expr)
+            }
+            if(dtype === kw_map.const) vars.push(ast.constdef(varName,type,expr));
+            if(dtype === kw_map.let) vars.push(ast.letdef(varName,type,expr));
+            this.eatWhitespace();
+            curr = this.tok.peek();
+            if(curr.value === n_chmap.COMMA) {
+                this.tok.next();
+                continue
+            }
+            else break
+        }
+        this.expect(n_chmap.SEMICOLON);
+        return vars.length === 1? vars[0]:vars;
+    }
+
+    parseStatements() {
+        const statements = [];
+        let curr = this.tok.peek();
+        // console.log("statement curr tok");
+        // console.log(curr);
+        // || (!termend.includes(curr.value))
+        while(curr.value in stp || 
+            (
+                curr.type === toktypes.identifier || 
+                curr.value === n_chmap.LPAREN ||
+                uop.includes(curr.value) || 
+                curr.type === toktypes.integer ||
+                curr.type === toktypes.float ||
+                curr.value in kwc_map
+            )
+        ) {
+            this.eatWhitespace();
+            const m = stp[curr.value];
+            if(m) statements.push(this[m](curr.value));
+            else {
+                this.eatWhitespace();
+                statements.push(this.parseExpression());
+                this.eatWhitespace();
+                this.expect(n_chmap.SEMICOLON);
+            }
+            this.eatWhitespace();
+            curr = this.tok.peek();
+            // console.log("curr toki: ");
+            // console.log(curr);
+            // console.log("statements after every iteration");
+            // console.log(statements);
+        }
+        return statements;
+    }
+
+    parseReturnStatement() {
+        this.expect(kw_map.return);
+        let exp = null;
+        this.eatWhitespace();
+        if(this.tok.peek().value !== n_chmap.SEMICOLON) 
+            exp = this.parseExpression();
+        // else this.vm.emitPush("constant",0);
+        this.eatWhitespace();
+        this.expect(n_chmap.SEMICOLON);
+        return ast.returndef(exp);
+    }
+
+    parseBlockStatement() {
+        let start = this.expect(n_chmap.LCURB);
+        this.eatWhitespace();
+        const statements = this.parseStatements();
+        this.eatWhitespace();
+        this.expect(n_chmap.RCURB,false,false,start);
+        return ast.block(statements);
+    }
+
+    parseIfStatement() {
+        this.expect(kw_map.if);
+        this.eatWhitespace();
+        let start = this.expect(n_chmap.LPAREN);
+        this.eatWhitespace();
+        const exp = this.parseExpression();
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN,false,start);
+        this.eatWhitespace();
+        start = this.expect(n_chmap.LCURB);
+        this.eatWhitespace();
+        const ifbody = this.parseStatements();
+        let elsebody = null;
+        this.eatWhitespace();
+        this.expect(n_chmap.RCURB,false,false,start);
+        this.eatWhitespace();
+        if(this.tok.peek().value == kw_map.else) {
+            this.expect(kw_map.else);
+            this.eatWhitespace()
+            start = this.expect(n_chmap.LCURB);
+            this.eatWhitespace();
+            elsebody = this.parseStatements();
+            this.eatWhitespace();
+            this.expect(n_chmap.RCURB,false,false,start);
+        }
+        return ast.ifdef(exp,ifbody,elsebody);
+        // this.vm.emitLabel(L2);
+    }
+
+    parseWhileStatement() {
+        this.expect(kw_map.while);
+        this.eatWhitespace();
+        let start = this.expect(n_chmap.LPAREN);
+        this.eatWhitespace();
+        const exp = this.parseExpression();
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN,false,start);
+        this.eatWhitespace();
+        start = this.expect(n_chmap.LCURB);
+        this.eatWhitespace();
+        const body = this.parseStatements();
+        this.eatWhitespace();
+        this.expect(n_chmap.RCURB,false,false,start);
+        this.eatWhitespace();
+        return ast.whiledef(exp,body);
+    }
+
+    parseParameterList() {
+        const params = [];
+        // this.eatWhitespace();
+        // if(this.tok.peek().value !== n_chmap.RPAREN) {
+            // if(this.subType == "method") {
+                // this.mst.define("this",this.className,"argument");
+            // }
+            // this.mst.define(varName,type,"argument");
+            this.eatWhitespace();
             let curr = this.tok.peek();
-            while(curr.value != ")") {
-                this.expect(",");
-                type = this.compileType();
-                varName = this.expect(true,"identifier").value;
-                this.mst.define(varName,type,"argument");
+            while(curr.value !== n_chmap.RPAREN && curr.type !== n_chmap.EOF) {
+                this.eatWhitespace();
+                const varName = this.expect(true,"identifier").value;
+                this.eatWhitespace();
+                this.expect(n_chmap.COLON)
+                this.eatWhitespace();
+                const type = this.parseType();
+                params.push(ast.paramdef(varName,type))
+                this.eatWhitespace();
+                curr = this.tok.peek();
+                if(curr.value === n_chmap.COMMA) {
+                    this.tok.next();
+                    continue;
+                }
+                // else break;
+                // type = this.compileType();
+                // varName = this.expect(true,"identifier").value;
+                // this.mst.define(varName,type,"argument");
+                this.eatWhitespace();
                 curr = this.tok.peek();
             }
-        }
+            // console.log("here in func params!");
+            // console.log(params)
+            return params;
+        // }
+        // return params;
     }
 
-    readVar(name) {
-        const type = this.mst.kind(name);
-        if(type == "field")
-            this.vm.emitPush("this",this.mst.index(name));
-        else this.vm.emitPush(type,this.mst.index(name));
-    }
-
-    writeVar(name) {
-        const type = this.mst.kind(name);
-        if(type == "field")
-            this.vm.emitPop("this",this.mst.index(name));
-        else this.vm.emitPop(type,this.mst.index(name));
-    }
-
-    compileLetStatement() {
-        this.expect("let");
-        let varName = this.expect(true,"identifier").value;
+    parseFunctionBody() {
+        const start = this.expect(n_chmap.LCURB);
         let curr = this.tok.peek();
-        if(curr.value == "[") {
-            this.readVar(varName);
-            this.expect("[");
-            this.compileExpression();
-            this.expect("]");
-            this.vm.emitBinaryOp("+");
+        // while(curr.value == "var") {
+        //     this.compileVarDec();
+        //     curr = this.tok.peek();
+        // }
+        // this.vm.emitFunction(this.genSubname(),this.mst.total("local"));
+        // if(this.subType == "method") {
+        //     this.vm.emitPush("argument",0);
+        //     this.vm.emitPop("pointer",0);
+        // }
+        // else if(this.subType == "constructor") {
+        //     this.vm.emitPush("constant",this.gst.total("field"));
+        //     this.vm.emitCall("Memory.alloc",1);
+        //     this.vm.emitPop("pointer",0);
+        // }
+        this.eatWhitespace();
+        const body = this.parseStatements();
+        this.eatWhitespace();
+        // console.log("bstart")
+        // console.log(start);
+        this.expect(n_chmap.RCURB,false,false,start);
+        return body;
+    }
+
+    parseFunctionDec() {
+        let curr;
+        this.expect(kw_map.fn);
+        // this.subType = this.tok.next().value;
+        this.eatWhitespace();
+        const name = this.expect(true,"identifier").value;
+        // let curr = this.tok.peek();
+        // let type;
+        // if(curr.value == "void") type = this.tok.next().value;
+        // else type = this.compileType();
+        // this.subName = 
+        this.eatWhitespace();
+        this.expect(n_chmap.LPAREN);
+        const params = this.parseParameterList();
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN);
+        let rettype = types.void;
+        this.eatWhitespace();
+        curr = this.tok.peek();
+        if(curr.value === n_chmap.COLON) {
+            this.tok.next();
+            this.eatWhitespace();
+            rettype = this.parseType();
         }
-        this.expect("=");
-        this.compileExpression();
-        this.expect(";");
-        if(curr.value == "[") {
-            this.vm.emitPop("temp",0);
-            this.vm.emitPop("pointer",1);
-            this.vm.emitPush("that",0);
-            this.vm.emitPush("temp",0);
-            this.vm.emitPop("that",0);
-        }
-        else this.writeVar(varName);
+        this.eatWhitespace();
+        const body = this.parseFunctionBody();
+        // this.compileSubroutineBody();
+        // this.mst.reset();
+        return ast.funcdef(name,params,rettype,body)
     }
 
-    genLabel(type) {
-        return `${this.className}$${this.subName}.${type}${this.count[type]++}`;
+    parseExport() {
+        // WIP: Do it after expressions, type checking and codegen
+        this.expect(kw_map.export);
+        this.eatWhitespace();
+        const out = this.parseDecl();
+        // Add error for exporting let var decs
+        return ast.exportdef(out);
     }
 
-    compileIfStatement() {
-        const L1 = this.genLabel("if");
-        const L2 = this.genLabel("else");
-        this.expect("if");
-        this.expect("(");
-        this.compileExpression();
-        this.vm.emitUnaryOp("~");
-        this.vm.emitIf(L1);
-        this.expect(")");
-        this.expect("{");
-        this.compileStatements();
-        this.expect("}");
-        this.vm.emitGoto(L2);
-        this.vm.emitLabel(L1);
-        if(this.tok.peek().value == "else") {
-            this.expect("else");
-            this.expect("{");
-            this.compileStatements();
-            this.expect("}");
-        }
-        this.vm.emitLabel(L2);
-    }
-
-    compileWhileStatement() {
-        const L1 = this.genLabel("while");
-        const L2 = this.genLabel("while");
-        this.vm.emitLabel(L1);
-        this.expect("while");
-        this.expect("(");
-        this.compileExpression();        
-        this.expect(")");
-        this.vm.emitUnaryOp("~");
-        this.vm.emitIf(L2);
-        this.expect("{");
-        this.compileStatements();
-        this.expect("}");
-        this.vm.emitGoto(L1);
-        this.vm.emitLabel(L2);
-    }
-
-    compileDoStatement() {
-        this.expect("do");
-        this.compileSubroutineCall();
-        this.expect(";");
-        this.vm.emitPop("temp",0);
-    }
-
-    compileReturnStatement() {
-        this.expect("return");
-        if(this.tok.peek().value !== ";") this.compileExpression();
-        else this.vm.emitPush("constant",0);
-        this.expect(";");
-        this.vm.emitReturn();
-    }
-
-    compileStatements() {
+    parseDecl() {
         let curr = this.tok.peek();
-        while(curr.value in stp) {
-            this[stp[curr.value]]();
+        if(curr.value === kw_map.const || curr.value === kw_map.let)
+            return this.parseVarDec(curr.value);
+        if(curr.value === kw_map.fn) return this.parseFunctionDec();
+        if(curr.value === kw_map.export) return this.parseExport();
+        // WIP
+        // if(curr.value === kw_map.import) return this.parseImport();
+    }
+
+    parseModule() {
+        this.eatWhitespace();
+        let curr = this.tok.peek();
+        let module = [];
+        while(curr.type !== n_chmap.EOF) {
+            let gd = this.parseDecl();
+            if(gd) module = module.concat(gd);
+            else this.tok.generate_error(curr,"Expected a top level declaration");
+            this.eatWhitespace();
             curr = this.tok.peek();
         }
+        return module;
     }
 
-    compileVarDec() {
-        this.expect("var");
-        const type = this.compileType();
-        let varName = this.expect(true,"identifier").value;
-        this.mst.define(varName,type,"local");
-        let curr = this.tok.peek();
-        while(curr.value != ";") {
-            this.expect(",");
-            varName = this.expect(true,"identifier").value;
-            this.mst.define(varName,type,"local");
-            curr = this.tok.peek();
-        }
-        this.expect(";");
-    }
-
-    compileSubroutineBody() {
-        this.expect("{");
-        let curr = this.tok.peek();
-        while(curr.value == "var") {
-            this.compileVarDec();
-            curr = this.tok.peek();
-        }
-        this.vm.emitFunction(this.genSubname(),this.mst.total("local"));
-        if(this.subType == "method") {
-            this.vm.emitPush("argument",0);
-            this.vm.emitPop("pointer",0);
-        }
-        else if(this.subType == "constructor") {
-            this.vm.emitPush("constant",this.cst.total("field"));
-            this.vm.emitCall("Memory.alloc",1);
-            this.vm.emitPop("pointer",0);
-        }
-        this.compileStatements();
-        this.expect("}");
-    }
-
-    genSubname() {
-        return `${this.className}.${this.subName}`;
-    }
-
-    compileSubroutineDec() {
-        this.subType = this.tok.next().value;
-        let curr = this.tok.peek();
-        let type;
-        if(curr.value == "void") type = this.tok.next().value;
-        else type = this.compileType();
-        this.subName = this.expect(true,"identifier").value;
-        this.expect("(");
-        this.compileParameterList();
-        this.expect(")");
-        this.compileSubroutineBody();
-        this.mst.reset();
-    }
-
-    compileExpressionList() {
-        let n = 0;
-        if(this.subType == "method") n++;
+    parseExpressionList() {
+        // let n = 0;
+        // if(this.subType == "method") n++;
+        const args = [];
         let next = this.tok.peek();
-        if(next.value !== ")") {
-            this.compileExpression();
+        if(next.value !== n_chmap.RPAREN) {
+            args.push(this.parseExpression());
+            this.eatWhitespace();
             next = this.tok.peek();
-            n++;
-            while(next.value !== ")") {
-                this.expect(",");
-                this.compileExpression();
-                n++;
+            // n++;
+            while(next.value !== n_chmap.RPAREN) {
+                this.expect(n_chmap.COMMA);
+                this.eatWhitespace();
+                args.push(this.parseExpression());
+                // n++;
+                this.eatWhitespace();
                 next = this.tok.peek();
+                this.eatWhitespace();
             } 
         }  
-        return n; 
+        // console.log("**********-**********");
+        // console.log("args in expr list");
+        // console.log(args);
+        return args; 
     }
 
-    compileSubroutineCall() {
-        let name = this.expect(true,"identifier").value;
-        const next = this.tok.peek();
-        if(next.value == ".") {
-            this.expect(".");
-            if(this.mst.isDefined(name)) this.readVar(name);
-            name += "."+this.expect(true,"identifier").value;
-        }
-        this.expect("(");
-        const nargs = this.compileExpressionList();
-        this.expect(")");
-        this.vm.emitCall(name,nargs);
+    parseFunctionCall() {
+        let name = ast.identifier(this.expect(true,toktypes.identifier).value);
+        this.eatWhitespace();
+        // const next = this.tok.peek();
+        // if(next.value == ".") {
+        //     this.expect(".");
+        //     if(this.mst.isDefined(name)) this.readVar(name);
+        //     name += "."+this.expect(true,"identifier").value;
+        // }
+        this.eatWhitespace();
+        let start = this.expect(n_chmap.LPAREN);
+        this.eatWhitespace();
+        const nargs = this.parseExpressionList();
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN,false,false,start);
+        return ast.funccall(name,nargs)
     }
 
-    compileTerm() {
+    parseTerm() {
+        this.eatWhitespace();
         let curr = this.tok.peek();
-        if(curr.value == "(") {
-            this.expect("(");
-            this.compileExpression();
-            this.expect(")");
+        // console.log("here i am!");
+        // console.log(curr)
+        if(curr.value === n_chmap.LPAREN) {
+            let start = this.expect(n_chmap.LPAREN);
+            let e = this.parseExpression();
+            this.expect(n_chmap.RPAREN,false,false,start);
+            return e;
         }
-        else if(uop.includes(curr.value)) {
-            this.expect(curr.value);
-            this.compileTerm();
-            this.vm.emitUnaryOp(curr.value);
+        if(uop.includes(curr.value)) {
+            const op = this.expect(curr.value);
+            const e = this.parseTerm();
+            return ast.unary(op,e,[]);
         }
-        else if(curr.type == "integerConstant") {
-            this.expect(true,"integerConstant");
-            this.vm.emitPush("constant",curr.value);
+        if(curr.type === toktypes.integer)
+            return ast.constant(this.tok.next().value,toktypes.integer);
+        if(curr.type === toktypes.float) 
+            return ast.constant(this.tok.next().value,toktypes.float);
+
+        if(kwc.includes(curr.value)) {
+            // this.expect(true,"keyword");
+            const value = this.tok.next();
+            return ast.constant(kwc_map[curr.value],toktypes.integer);
+            // if(curr.value in kwc_map) {
+            //     this.vm.emitPush("constant", kwc_map[curr.value]);
+            // }
         }
-        else if(curr.type == "stringConstant") {
-            this.expect(true,"stringConstant");
-            const len = curr.value.length;
-            this.vm.emitPush("constant",len);
-            this.vm.emitCall("String.new",1);
-            for(let i = 0;i < len;i++) {
-                this.vm.emitPush("constant",curr.value.charCodeAt(i));
-                this.vm.emitCall("String.appendChar",2);
+        if(curr.type === toktypes.identifier) {
+            // console.log("atleast reached here!");
+            // this.eatWhitespace();
+            let temp = this.tok.peek(2);
+            // || temp.value == "."
+            // console.log("temppp")
+            // console.log(temp)
+            // console.log("the tbuffer");
+            // console.log(this.tok.tbuff);
+            if(temp.value === n_chmap.LPAREN) {
+                // console.log("handling funk call");
+                this.eatWhitespace();
+                return this.parseFunctionCall()
             }
+            // else if(temp.value == "[") {
+            //     const varName = this.expect(true,"identifier").value;
+            //     this.readVar(varName);
+            //     this.expect("[");
+            //     this.compileExpression();
+            //     this.expect("]");
+            // }
+            else return ast.identifier(this.tok.next().value);
         }
-        else if(kwc.includes(curr.value)) {
-            this.expect(true,"keyword");
-            if(curr.value in kwc_map) {
-                this.vm.emitPush("constant", kwc_map[curr.value]);
-                if(curr.value == "true") this.vm.emitUnaryOp("-");
-            }
-        }
-        else if(curr.type == "identifier") {
-            let temp = this.tok.peek(1);
-            if(temp.value == "(" || temp.value == ".") this.compileSubroutineCall()
-            else if(temp.value == "[") {
-                const varName = this.expect(true,"identifier").value;
-                this.readVar(varName);
-                this.expect("[");
-                this.compileExpression();
-                this.expect("]");
-                this.vm.emitBinaryOp("+");
-                this.vm.emitPop("pointer",1);
-                this.vm.emitPush("that",0);
-            }
-            else {
-                const varName = this.expect(true,"identifier").value;
-                this.readVar(varName);
-            }
-        }
-        else throw new SyntaxError("Something wrong in term!");
+        throw this.tok.generate_error(curr,"Unknown expression term");
     }
 
 
-    compileExpression() {
+    parseExpression() {
         // Sandwich a precedence parser here.
-        this.compileTerm();
+        let l = this.parseTerm();
+        this.eatWhitespace();
         let curr = this.tok.peek();
         while(bop.includes(curr.value)) {
-            this.expect(curr.value);
+            // console.log("inside the loop");
+            const op = this.expect(curr.value);
+            this.eatWhitespace();
+            // console.log("peeking here");
+            // console.log(this.tok.peek());
             if(!termend.includes(this.tok.peek().value)) {
-                this.compileTerm();
-                this.vm.emitBinaryOp(curr.value);
+                this.eatWhitespace();
+                l = ast.binary(op,l,this.parseTerm(),[]);
             }
+            this.eatWhitespace();
             curr = this.tok.peek();
         }
+        // console.log("after expression!");
+        // console.log(l)
+        return l;
     }
 }
 
-module.exports = Compiler;
+module.exports = Parser;
