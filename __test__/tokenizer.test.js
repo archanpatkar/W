@@ -5,7 +5,18 @@ const  Tokenizer = require('../src/tokenizer');
 test('Double dot checking', () => {
   expect(() => new Tokenizer(`10.3.4`).next())
       .toThrowError(/multiple dots/); 
-  expect(() => console.log(new Tokenizer(`1..4`).next())).toThrowError(/multiple dots/);
+  expect(() => new Tokenizer(`1..4`).next()).toThrowError(/multiple dots/);
+});
+
+test('Char checking', () => {
+  expect(() => new Tokenizer(`'a`).next())
+      .toThrowError(/`'`/); 
+  expect(() => {
+    const temp = new Tokenizer(`4'`)
+    temp.next();
+    temp.next();
+  }).toThrowError(/`'`/);
+  expect(() => console.log(new Tokenizer(`'1`).next())).toThrowError(/`'`/);
 });
 
 // Testing
