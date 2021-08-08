@@ -25,7 +25,7 @@ export fn factorial(n: i32): i32 {
 
 #### `Javascript Code`
 ```javascript
-const module = new WebAssembly.Module(wfile); // content from .wasm compiled from .w file
+const module = new WebAssembly.Module(wasmfilecontent); // content from .wasm compiled from .w file
 const instance = new WebAssembly.Instance(module, {});
 console.log(instance.exports.area(3.7));
 console.log(instance.exports.factorial(6));
