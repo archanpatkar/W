@@ -32,22 +32,22 @@ const stp = {
     "const":"parseVarDec",
 };
 
-// rbp for future unary and right associative operators
+// 1 = Left to right
+// 0 = Right to Left
 const prec = {
-    "=": { lbp: 0, rbp: 1 },
-    "or": { lbp: 2, rbp: 0 },
-    "and": { lbp: 3, rbp: 0 },
-    "not": { lbp: 0, rbp: 8 },
-    "==": { lbp: 4, rbp: 0 },
-    "!=": { lbp: 4, rbp: 0 },
-    "<=": { lbp: 5, rbp: 0 },
-    ">=": { lbp: 5, rbp: 0 },
-    ">": { lbp: 5, rbp: 0 },
-    "<": { lbp: 5, rbp: 0 },
-    "+": { lbp: 6, rbp: 0 },
-    "-": { lbp: 6, rbp: 8 },
-    "*": { lbp: 7, rbp: 0 },
-    "/": { lbp: 7, rbp: 0 },
+    "=": { bp:1, type:1 },
+    "or": { bp:2, type:1 },
+    "and": { bp:3, type:1 },
+    "==": { bp:4, type:1 },
+    "!=": { bp:4, type:1 },
+    "<=": { bp:5, type:1 },
+    ">=": { bp:5, type:1 },
+    ">": { bp:5, type:1 },
+    "<": { bp:5, type:1 },
+    "+": { bp:6, type:1 },
+    "-": { bp:6, type:1 },
+    "*": { bp:7, type:1 },
+    "/": { bp:7, type:1 },
 };
 
 class Parser {
@@ -490,15 +490,29 @@ class Parser {
         throw this.tok.generate_error(curr,"Unknown expression term");
     }
 
-    parseExpression(min=0,left) {
+    handleInfix(op,left) {
+        this.eatWhitespace();
+        left = ast.binary(op,left,this.parseExpression(prec[op.value].bp),[]);
+        this.eatWhitespace();
+        return left;
+    }
+
+    handleInfixr(op,left) {
+        this.eatWhitespace();
+        left = ast.binary(op,left,this.parseExpression(prec[op.value].bp-1),[]);
+        this.eatWhitespace();
+        return left;
+    }
+
+    parseExpression(rbp=0) {
         let l = this.parseTerm();
         this.eatWhitespace();
         let curr = this.tok.peek(0);
-        while(bop.includes(curr.value) && min <= prec[curr.value].lbp) {
+        while(bop.includes(curr.value) && rbp < prec[curr.value].bp) {
             const op = this.expect(curr.value);
-            this.eatWhitespace();
-            l = ast.binary(op,l,this.parseExpression(prec[curr.value].lbp),[]);
-            this.eatWhitespace();
+            l = prec[curr.value].type?
+                this.handleInfix(op,l) :
+                this.handleInfixr(op,l);
             curr = this.tok.peek(0);
         }
         return l;
