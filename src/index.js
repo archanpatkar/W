@@ -2,12 +2,12 @@ const Parser = require("./parser");
 const { TypeChecker } = require("./type");
 const { CodeGen } = require("./codegen");
 
-function compile(data) {
-    const p = new Parser(data);
-    const ast = p.parse();
-    const t = new TypeChecker(p.tok);
-    t.check(ast);
-    return new CodeGen(ast, t.global, t.functabs).gen();
+function compile(code) {
+    const par = new Parser(code);
+    const ast = par.parse();
+    const tch = new TypeChecker(par.tok);
+    tch.check(ast);
+    return new CodeGen(ast, tch.getSymbolTable()).gen();
 }
 
-module.exports = compile
+module.exports = compile;
