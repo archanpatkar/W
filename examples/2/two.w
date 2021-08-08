@@ -26,6 +26,10 @@ export fn factorial(n: i32): i32 {
   return n * factorial(n-1);
 }
 
+export fn f2():f32 {
+  return 1.0 / 2.0 / 3.0;
+}
+
 export fn f1(a: i32, b: i32): i32 {
   let k: f64 = 1.4;
   let i: i32 = 10;
