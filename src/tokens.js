@@ -27,7 +27,7 @@ const keywords = [
     "return", "void", "if", "else", "while", 
     "true", "false", "let", "for", "bool", 
     "do", "and", "or", "not", "i32", "i64", "f32", 
-    "f64", "void", "for"
+    "f64", "void", "for", "break", "continue"
 ];
 // "var",
 
@@ -44,9 +44,10 @@ const kw_map = {
     let:"let",
     const:"const",
     return:"return",
+    break:"break",
+    continue:"continue",
     while:"while",
     export:"export",
-    // var: "var",
     i32: "i32",
     i64: "i64",
     f32: "f32",
@@ -57,7 +58,9 @@ const kw_map = {
     bool: "bool",
     and: "and",
     or: "or",
-    not: "not"
+    not: "not",
+    do: "do",
+    for: "for"
 }
 
 const n_chmap = {

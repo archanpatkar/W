@@ -1,12 +1,71 @@
-var binaryen = require("binaryen");
-const Parser = require("./parser");
 const ast = require("./ast");
-const { types, TypeChecker } = require("./type");
-const { toktypes, n_chmap, kw_map } = require("./tokens");
+const { types } = require("./type");
+const { n_chmap, kw_map } = require("./tokens");
+const binaryen = require("binaryen");
 
 function random(min, max) {
   const r = Math.random() * (max - min) + min
   return Math.floor(r)
+}
+
+types.i32.__proto__.cast = function(type,mod) {
+  return type.cata({
+    i32: () => i => i,
+    i64: () => mod.i32.wrap,
+    f32: () => mod.i32.trunc_s.f32,
+    f64: () => mod.i32.trunc_s.f64,
+    intConstant: () => mod.i32.const,
+    floatConstant: () => mod.i32.const,
+    bool: () => {},
+    char: () => {},
+    void: () => {},
+    func: () => {}
+  });
+}
+
+types.i64.__proto__.cast = function(type,mod) {
+  return type.cata({
+    i32: () => mod.i64.extend_s,
+    i64: () => i => i,
+    f32: () => mod.i64.trunc_s.f32,
+    f64: () => mod.i64.trunc_s.f64,
+    intConstant: () => mod.i64.const,
+    floatConstant: () => mod.i64.const,
+    bool: () => {},
+    char: () => {},
+    void: () => {},
+    func: () => {}
+  });
+}
+
+types.f32.__proto__.cast = function(type,mod) {
+  return type.cata({
+    i32: () => mod.f32.convert_s.i32,
+    i64: () => mod.f32.convert_s.i64,
+    f32: () => i => i,
+    f64: () => mod.f32.demote,
+    intConstant: () => mod.f32.const,
+    floatConstant: () => mod.f32.const,
+    bool: () => {},
+    char: () => {},
+    void: () => {},
+    func: () => {}
+  });
+}
+
+types.f64.__proto__.cast = function(type,mod) {
+  return type.cata({
+    i32: () => mod.f64.convert_s.i32,
+    i64: () => mod.f64.convert_s.i64,
+    f32: () => mod.f64.promote,
+    f64: () => i => i,
+    intConstant: () => mod.f64.const,
+    floatConstant: () => mod.f64.const,
+    bool: () => {},
+    char: () => {},
+    void: () => {},
+    func: () => {}
+  });
 }
 
 const iopmap = {
@@ -38,9 +97,18 @@ const fopmap = {
 class CodeGen {
   constructor(ast, gst, fst) {
     this.init(ast, gst, fst);
-    this.labels = {
-      while:0
-    };
+  }
+
+  ltop() {
+    return this.lstack[0];
+  }
+
+  lpush(b,c) {
+    this.lstack.unshift([b,c]);
+  }
+
+  lpop() {
+    this.lstack.shift();
   }
 
   genLabel(str,n=true) {
@@ -53,17 +121,21 @@ class CodeGen {
     this.global = gst;
     this.fun = fst;
     this.module = new binaryen.Module();
+    this.lstack = [];
+    this.labels = {
+      while:0
+    };
   }
 
   wasmType(type) {
-    if (type === toktypes.integer) return this.module.i32;
-    if (type === toktypes.float) return this.module.f32;
     return type.cata({
       i32: () => this.module.i32,
       i64: () => this.module.i64,
       f32: () => this.module.f32,
       f64: () => this.module.f64,
       bool: () => this.module.i32,
+      intConstant: () => this.module.i32,
+      floatConstant: () => this.module.f32,
       char: () => {},
       void: () => {},
       func: () => {}
@@ -71,66 +143,26 @@ class CodeGen {
   }
 
   wasmType2(type) {
-    if (type === toktypes.integer) return binaryen.i32;
-    if (type === toktypes.float) return binaryen.f32;
     return type.cata({
       i32: () => binaryen.i32,
       i64: () => binaryen.i64,
       f32: () => binaryen.f32,
       f64: () => binaryen.f64,
       bool: () => binaryen.i32,
+      intConstant: () => binaryen.i32,
+      floatConstant: () => binaryen.f32,
       char: () => {},
       void: () => binaryen.none,
       func: () => {}
     });
   }
 
-  // addDec(name,type,kind,env=this.global) {
-  //     if(env.isDefined(name)) {
-  // if(!equal(type,env.type(name))) {
-  // Do something here for overloading!
-  // }
-  // console.log("|---here!---|");
-  // console.log(name);
-  // console.log(env.table);
-  //         throw new Error("Cannot redefine a declaration");
-  //     }
-  //     else env.define(name,type,kind);
-  // }
-
-  // hoistDecs(darr,env) {
-  // console.log("Hoisting!");
-  // console.log(darr);
-  // for(let dec of darr) {
-  // console.log("haul it!");
-  // console.log(dec);
-  // if(ast.constdef.is(dec)) 
-  // {
-  //     this.addDec(dec.iden,dec.type,"constant",env);
-  // }   
-  // else if(ast.letdef.is(dec)) {
-  //     this.addDec(dec.iden,dec.type,"var",env);
-  // }
-  // else if(ast.funcdef.is(dec)) {
-  //     const ftype = types.func(dec.params.map(p => p.type),dec.rettype);
-  //     this.addDec(dec.name,ftype,"function",env);
-  // }
-  //     }
-  // }
-
-  // lvalue(name,env) {
-  // console.log("in l value")
-  // console.log(env.table);
-  // console.log(name);
-  // console.log(env.kind(name));
-  // return lk.includes(env.kind(name));
-  // }
-
-  // rvalue(val) {
-  // }
-
   genConstant(n) {
-    if (types.is(n.type)) {
+    if (
+      types.is(n.type) && 
+      !types.intConstant.is(n.type) && 
+      !types.floatConstant.is(n.type)
+    ) {
       return this.wasmType(n.type).const(n.value)
     }
     return n;
@@ -147,20 +179,6 @@ class CodeGen {
       );
     }
     return this.module.global.get(i.name, this.wasmType2(env.type(i.name)));
-  }
-
-  isInteger(type) {
-    if (types.i32.is(type)) return true;
-    if (types.i64.is(type)) return true;
-    if (type === toktypes.integer) return true;
-    return false
-  }
-
-  isFloat(type) {
-    if (types.f32.is(type)) return true;
-    if (types.f64.is(type)) return true;
-    if (type === toktypes.float) return true;
-    return false
   }
 
   genConstDef(cd, env) {
@@ -188,94 +206,109 @@ class CodeGen {
     );
   }
 
-  chParamDef(p, env) {
-    this.addDec(p.name, p.type, "arg", env);
-    return p.type;
-  }
-
-  // chBlockDef(bl,env) {
-
-  // }
-
-  // chFuncDef(f, env) {
-  //   let nenv = new SymbolTable(env);
-  //   nenv.func = f.name;
-  //   this.functabs[f.name] = nenv;
-  //   const params = f.params.map(p => this.check(p, nenv));
-    // const ftype = types.func(params,f.rettype);
-    // this.addDec(f.name,ftype,"function",env);
-    // console.log(nenv.table);
-  //   const body = this.check(f.body, nenv);
-  //   return env.type(f.name);
-  // }
-
   genIfDef(id, env) {
     let cond = this.subgen(id.exp, env);
-    if (ast.constant.is(cond)) init = this.wasmType(types.i32()).const(cond.value);
-    // console.log("printing body")
-    // this.module.block(null, id.body1.map(s => {
-    //   let val = this.subgen(s, env);
-    //   if (ast.constant.is(val)) val = this.wasmType(ftype.params[i]).const(val.value);
-    //   return val;
-    // }));
+    if (ast.constant.is(cond)) cond = this.wasmType(types.i32).const(cond.value);
     let body1 = this.genBlock(id.body1,env);
     let body2 = id.body2 ? this.genBlock(id.body2,env) : undefined;
     return this.module.if(cond, body1, body2);
   }
 
-
-  // console.log(binaryen.emitText(this.module.block(null,[
-  //   this.module.loop(
-  //     slabel,
-  //     this.module.if(
-  //       cond,
-  //       this.genBlock(wd.body,env),
-  //       this.module.br(elabel)
-  //     )
-  //   ),
-  //   this.module.block(elabel,[])
-  // ])));
-
   genWhileDef(wd, env) {
     const blabel = this.genLabel("wblockstart");
     const slabel = this.genLabel("whilestart");
-    // const elabel = this.genLabel("whileend");
+    this.lpush(blabel,slabel);
     let cond = this.subgen(wd.exp, env);
-    if (ast.constant.is(cond)) init = this.wasmType(types.i32()).const(cond.value);
+    if (ast.constant.is(cond)) cond = this.wasmType(types.i32).const(cond.value);
+    const block = this.genBlock(wd.body,env,null,[],[
+      this.module.br(slabel)
+    ]);
+    this.lpop();
     return [
       this.module.block(blabel,[
         this.module.loop(
           slabel,
           this.module.if(
             cond,
-            this.genBlock(wd.body,env,null,[],[
+            block,
+            this.module.br(blabel)
+          )
+        ),
+      ])
+    ];
+  }
+
+  genForDef(wd, env) {
+    const blabel = this.genLabel("fblockstart");
+    const slabel = this.genLabel("forstart");
+    const elabel = this.genLabel("forbody");
+    this.lpush(blabel,elabel);
+    let exps = wd.exps.map(e => e?this.subgen(e, env):this.module.nop());
+    let cond = exps[1];
+    if (ast.constant.is(cond)) cond = this.wasmType(types.i32).const(cond.value);
+    const block = this.genBlock(wd.body,env,elabel);
+    this.lpop();
+    return [
+      this.module.block(blabel,[
+        exps[0],
+        this.module.loop(
+          slabel,
+          this.module.if(
+            cond,
+            this.module.block(null,[
+              block,
+              exps[2],
               this.module.br(slabel)
             ]),
             this.module.br(blabel)
           )
         ),
       ])
-      // this.module.block(elabel,[])
     ];
-    // return this.module.if(cond,this.module.block(null,[
-    //   ,
-    //   this.module.block(elabel,[])
-    // ]));
   }
 
-  equalT(t1, t2) {
-    if (Array.isArray(t1) && Array.isArray(t2)) {
-      if (t1.length === t2.length)
-        return t1.reduce((prev, curr, i) => prev && curr && t2[i], true)
-      return false;
-    }
-    return this.isInteger(t1) && this.isInteger(t2) ||
-      this.isFloat(t1) && this.isFloat(t2)
+  genDoWhileDef(wd, env) {
+    const blabel = this.genLabel("doblockstart");
+    const slabel = this.genLabel("dostart");
+    this.lpush(blabel,slabel);
+    let cond = this.subgen(wd.exp, env);
+    if (ast.constant.is(cond)) cond = this.wasmType(types.i32).const(cond.value);
+    const block = this.genBlock(wd.body,env);
+    this.lpop();
+    return [
+      this.module.block(blabel,[
+        this.module.loop(
+          slabel,
+          this.module.block(null,[
+            block,
+            this.module.if(
+              cond,
+              this.module.br(slabel),
+              this.module.br(blabel)
+            )
+          ])
+        )
+      ])
+    ];
+  }
+
+  genBreak(env) {
+    let b = this.ltop()[0];
+    // console.log(b);
+    // b = b[0];
+    if(b) return this.module.br(b);
+    return this.module.nop();
+  }
+
+  genContinue(env) {
+    let c = this.ltop()[1];
+    if(c) return this.module.br(c);
+    return this.module.nop();
   }
 
   genFuncCall(fc, env) {
-    console.log("generating function call");
-    console.log(fc)
+    // console.log("generating function call");
+    // console.log(fc)
     const ftype = this.global.type(fc.func.name);
 
     return this.module.call(
@@ -291,12 +324,18 @@ class CodeGen {
 
   genUnary(op, env) {
     // WIP
-    const wt = this.wasmType(op.type[0]);
     let right = this.subgen(op.right, env);
+    if(types.is(op.op)) {
+      // type casting code
+      return ast.constant.is(right)?
+        op.op.cast(op.type[0],this.module)(right.value): 
+        op.op.cast(op.type[0],this.module)(right);
+    }
+    const wt = this.wasmType(op.type[0]);
     if (ast.constant.is(right)) right = wt.const(right.value);
     if (op.op.value === n_chmap.SUB)
       return wt.mul(wt.const(-1), right);
-    if (op.op === kw_map.not)
+    if (op.op.value === kw_map.not)
       return this.module.select(right, wt.const(0), wt.const(1))
   }
 
@@ -338,6 +377,28 @@ class CodeGen {
           return wt[iopmap[op.op.value]](left, right);
         return wt[fopmap[op.op.value]](left, right);
       }
+      if(op.op.value === kw_map.and) {
+        return this.module.select(
+          left, 
+          this.module.select(
+            right, 
+            wt.const(1), 
+            wt.const(0)
+          ), 
+          wt.const(0)
+        );
+      }
+      if(op.op.value === kw_map.or) {
+        return this.module.select(
+          left,  
+          wt.const(1),
+          this.module.select(
+            right, 
+            wt.const(1), 
+            wt.const(0)
+          )
+        );
+      }
       return this.module.nop();
     }
   }
@@ -371,12 +432,16 @@ class CodeGen {
       funcdef: this.module.nop, // ["name","params","rettype","body"] f => this.chFuncDef(f,env),
       ifdef: id => this.genIfDef(id, env), // ["exp","body1","body2"]
       whiledef: wd => this.genWhileDef(wd, env), // ["exp","body"]
+      dowhiledef: dw => this.genDoWhileDef(dw, env), // ["exp","body"]
+      fordef: dw => this.genForDef(dw, env), // ["exps","body"]
       block: b => this.genBlock(b, env), // ["statements"]
       binary: op => this.genBinary(op, env), // ["op","left","right"]
       unary: op => this.genUnary(op, env), // ["op","right"]
       funccall: fc => this.genFuncCall(fc, env), // ["func","args"]
       returndef: rd => this.genReturnDef(rd, env), // ["exp"]
-      exportdef: this.module.nop // ["decl"] ed => this.chExportDef(ed,env)
+      exportdef: this.module.nop, // ["decl"] ed => this.chExportDef(ed,env)
+      break: () => this.genBreak(env),
+      continue: () => this.genContinue(env)
     });
   }
 
@@ -394,7 +459,7 @@ class CodeGen {
         // }
         return this.module.global.set(a[0].iden, a[1])
       }
-      ).concat([this.global.kind("main") === "function" ? this.module.call("main", [], binaryen.none) : this.module.nop()])));
+      ).concat([this.global.isDefined("main") && this.global.kind("main") === "function" ? this.module.call("main", [], binaryen.none) : this.module.nop()])));
     return this.module.getFunction(startup);
   }
 
@@ -441,20 +506,12 @@ class CodeGen {
         // if(wexport) this.module.addGlobalExport(dec.iden,dec.iden)
       }
       else if (ast.funcdef.is(dec)) {
-        // console.log("Generating code for function:");
-        // console.log(dec.name);
         const type = env.type(dec.name);
-        // console.log("function type:");
-        // console.log(type.toString());
-        // console.log("function body code:");
-        // dec.body.forEach(s => console.log(s.toString()));
         const tab = this.fun[dec.name];
         const args = type.params;
-        // tab.allkind("arg").sort((a,b) => a.absIndex < b.absIndex?-1:1);
         const locals = tab.allkind("var")
                       .concat(tab.allkind("constant"))
                       .sort((a,b) => a.absIndex < b.absIndex?-1:1);
-        // const bv = ;
         this.module.addFunction(
           dec.name,
           binaryen.createType(args.map(t => this.wasmType2(t))),
@@ -476,78 +533,3 @@ class CodeGen {
 }
 
 module.exports = { CodeGen };
-
-const p = new Parser();
-const t = new TypeChecker();
-
-let a = p.parse(`
-    export const x: f32 = 1.44;
-    export const y: i32 = 100;
-    export const z: i64 = 5030445;
-    let t: i32 = (-2);
-
-    fn main(){
-      let k: i32 = 3;
-    }
-
-    export fn identity(i: i32): i32 {
-      return i;
-    }
-
-    export fn test2(): f64 {
-      const d: f64 = 4.0;
-      const a: i32 = 1;
-      const b: i64 = 2;
-      const c: f32 = 3.142;
-      return d/2.0;
-    }
-
-    export fn factorial(n: i32): i32 {
-      if(n == 0) {
-        return 1;
-      }
-      return n * factorial(n-1);
-    }
-
-    export fn f1(a: i32, b: i32): i32 {
-      let k: f64 = 1.4;
-      let i: i32 = 10;
-      main();
-      (-5);
-      1 + 2;
-      t = (9 * 2);
-      // k = 3.3333;
-      k = test2();
-      if(a) {
-        let d: i32 = t;
-        let e: i32;
-        return d + i * y;
-      } else {
-        while(i < 20) {
-          i = (i + 1);
-        }
-        return identity(i);
-      }
-      return i;
-    }
-`);
-console.log("*-AST Nodes-*");
-a.forEach(n => console.log(n.toString()));
-t.check(a);
-
-const cg = new CodeGen(a, t.global, t.functabs);
-let wasmData = cg.gen();
-
-// Example usage with the WebAssembly API
-var compiled = new WebAssembly.Module(wasmData);
-var instance = new WebAssembly.Instance(compiled, {});
-// console.log(instance.exports);
-// console.log(instance.exports.x.value);
-// console.log(instance.exports.y.value);
-console.log(instance.exports.f1(0, 20));
-console.log(instance.exports.test2());
-console.log(instance.exports.factorial(5));
-// console.log(instance.exports.f2());
-
-// console.log(instance.exports.mult(1.2, 2.33));
-// console.log(instance.exports.test2(10));

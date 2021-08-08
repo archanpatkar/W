@@ -22,9 +22,12 @@ const stp = {
     // "let": "compileLetStatement",
     "if": "parseIfStatement",
     "while": "parseWhileStatement",
-    // "do": "parseDoStatement",
+    "for":"parseForStatement",
+    "do":"parseDoWhileStatement",
     "return": "parseReturnStatement",
     "{":"parseBlockStatement",
+    "break":"parseBreak",
+    "continue":"parseContinue",
     "let":"parseVarDec",
     "const":"parseVarDec",
 };
@@ -49,10 +52,12 @@ const prec = {
 
 class Parser {
     constructor(code) {
+        console.log("constructor");
         if(code) this.setup(code);
     }
 
     setup(code) {
+        console.log("setup");
         this.code = code;
         this.tok = new Tokenizer(code);
     }
@@ -76,11 +81,9 @@ class Parser {
     }
 
     parse(code) {
-        if(this.code || code) {
-            if(code) this.setup(code);
-            return this.parseModule();
-        }
-        throw new Error("No code given!");
+        if(code) this.setup(code);
+        return this.parseModule();
+        // throw new Error("No code given!");
     }
 
     parseType() {
@@ -166,6 +169,20 @@ class Parser {
         return statements;
     }
 
+    parseBreak() {
+        this.expect(kw_map.break);
+        this.eatWhitespace();
+        this.expect(n_chmap.SEMICOLON);
+        return ast.break;
+    }
+
+    parseContinue() {
+        this.expect(kw_map.continue);
+        this.eatWhitespace();
+        this.expect(n_chmap.SEMICOLON);
+        return ast.continue;
+    }
+
     parseReturnStatement() {
         this.expect(kw_map.return);
         let exp = null;
@@ -204,7 +221,7 @@ class Parser {
         this.eatWhitespace();
         if(this.tok.peek(0).value == kw_map.else) {
             this.expect(kw_map.else);
-            this.eatWhitespace()
+            this.eatWhitespace();
             start = this.expect(n_chmap.LCURB);
             this.eatWhitespace();
             elsebody = this.parseStatements();
@@ -230,6 +247,61 @@ class Parser {
         this.expect(n_chmap.RCURB,false,false,start);
         this.eatWhitespace();
         return ast.whiledef(exp,body);
+    }
+
+    parseForStatement() {
+        this.expect(kw_map.for);
+        this.eatWhitespace();
+        let start = this.expect(n_chmap.LPAREN);
+        this.eatWhitespace();
+        const exps = [];
+        console.log("before expressions");
+        let curr = this.tok.peek(0);
+        for(let i = 0;i < 3;i++) {
+            console.log(curr);
+            if(curr.value === n_chmap.SEMICOLON)
+                exps.push(i==1?ast.constant(1,types.i32):null)
+            else exps.push(this.parseExpression());
+            if(i < 2) {
+                this.eatWhitespace();
+                this.expect(n_chmap.SEMICOLON);
+            }
+            this.eatWhitespace();
+            curr = this.tok.peek(0);
+        }
+        console.log("after expressions");
+        console.log(exps);
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN,false,start);
+        this.eatWhitespace();
+        start = this.expect(n_chmap.LCURB);
+        this.eatWhitespace();
+        const body = this.parseStatements();
+        this.eatWhitespace();
+        this.expect(n_chmap.RCURB,false,false,start);
+        this.eatWhitespace();
+        return ast.fordef(exps,body);
+    }
+
+    parseDoWhileStatement() {
+        this.expect(kw_map.do);
+        this.eatWhitespace();
+        let start = this.expect(n_chmap.LCURB);
+        this.eatWhitespace();
+        const body = this.parseStatements();
+        this.eatWhitespace();
+        this.expect(n_chmap.RCURB,false,false,start);
+        this.eatWhitespace();
+        this.expect(kw_map.while);
+        this.eatWhitespace();
+        start = this.expect(n_chmap.LPAREN);
+        this.eatWhitespace();
+        const exp = this.parseExpression();
+        this.eatWhitespace();
+        this.expect(n_chmap.RPAREN,false,start);
+        this.eatWhitespace();
+        this.expect(n_chmap.SEMICOLON);
+        return ast.dowhiledef(body,exp);
     }
 
     parseParameterList() {

@@ -15,6 +15,8 @@ class Tokenizer {
     }
 
     static isNumber(c) {
+        console.log("here")
+        console.log(c)
         return c.match(/[0-9]/)?true:false;
     }    
 
@@ -180,6 +182,8 @@ class Tokenizer {
             this.curr++;
             this.ch = this.code[this.curr];
         }
+        this.newline();
+        this.ch = this.code[this.curr];
     }
 
     mlinecomment() {
@@ -191,13 +195,19 @@ class Tokenizer {
             (this.ch !== n_chmap.STAR) && 
             (this.code[this.curr + 1] !== n_chmap.SLASH)
         ) {
-            this.ch = this.code[++this.curr];
+            if(this.ch === n_chmap.NL) {
+                this.newline();
+                this.ch = this.code[this.curr];
+            }
+            else this.ch = this.code[++this.curr];
         }
         this.curr += 2;
         this.ch = this.code[this.curr];
     }
 
-    tokenize(string=this.code) {
+    tokenize() {
+        console.log("in tokenizer");
+        console.log(this.code);
         if (this.curr < this.code.length) {
             this.ch = this.code[this.curr];
             if (this.ch === n_chmap.SLASH && 

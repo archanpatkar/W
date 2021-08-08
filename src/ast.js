@@ -15,8 +15,10 @@ const ast = sum("Node", {
     funccall: ["func","args"],
     returndef: ["exp"],
     exportdef: ["decl"],
-    // dowhilecons: ["cond","body"],
-    // forcons: ["var","cond","upd","body"],
+    dowhiledef: ["body","exp"],
+    fordef: ["exps","body"],
+    break: [],
+    continue: []
     // Add more ast nodes....
 });
 

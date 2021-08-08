@@ -85,7 +85,8 @@ function typeMismatchError(type1,type2) {
 }
 
 class TypeChecker {
-    constructor() {
+    constructor(tok) {
+        this.tok = tok;
         this.global = new SymbolTable(null);
         this.functabs = {};
     }
@@ -189,13 +190,25 @@ class TypeChecker {
             if(id.body2) this.check(id.body2,env);
             return;
         }
-        typeMismatchError("i32",type)
+        typeMismatchError("Expected i32",type)
     }
 
     chWhileDef(wd,env) {
         const type = this.check(wd.exp,env);
         if(types.i32.is(type) || types.intConstant.is(type)) return this.check(wd.body,env);
-        typeMismatchError("i32",type)
+        typeMismatchError("Expected i32",type)
+    }
+
+    chDoWhileDef(dw,env) {
+        const type = this.check(dw.exp,env);
+        if(types.i32.is(type) || types.intConstant.is(type)) return this.check(dw.body,env);
+        typeMismatchError("Expected i32",type);
+    }
+
+    chForDef(fd,env) {
+        const ft = fd.exps.map(e => e?this.check(e,env):e);
+        if(types.i32.is(ft[1]) || types.intConstant.is(ft[1])) return this.check(fd.body,env);
+        typeMismatchError("Expected i32",type);
     }
 
     equalT(t1,t2) {
@@ -305,12 +318,16 @@ class TypeChecker {
             funcdef: f => this.chFuncDef(f,env), // ["name","params","rettype","body"]
             ifdef: id => this.chIfDef(id,env), // ["exp","body1","body2"]
             whiledef: wd => this.chWhileDef(wd,env), // ["exp","body"]
+            dowhiledef: dw => this.chDoWhileDef(dw,env), // ["exp","body"]
+            fordef: fd => this.chForDef(fd,env), // ["exps","body"]
             block: b => this.chBlockDef(b,env), // ["statements"]
             binary: op => this.chBinary(op,env), // ["op","left","right"]
             unary: op => this.chUnary(op,env), // ["op","right"]
             funccall: fc => this.chFuncCall(fc,env), // ["func","args"]
             returndef: rd => this.chReturnDef(rd,env), // ["exp"]
             exportdef: ed => this.chExportDef(ed,env), // ["decl"]
+            break: () => 0,
+            continue: () => 0
         });
     }
 }
