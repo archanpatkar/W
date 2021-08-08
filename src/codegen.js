@@ -95,8 +95,8 @@ const fopmap = {
 }
 
 class CodeGen {
-  constructor(ast, gst, fst) {
-    this.init(ast, gst, fst);
+  constructor(ast, st) {
+    this.init(ast, st.gst, st.fst);
   }
 
   ltop() {

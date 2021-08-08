@@ -91,6 +91,13 @@ class TypeChecker {
         this.functabs = {};
     }
 
+    getSymbolTable() {
+        return {
+            gst:this.global,
+            fst:this.functabs
+        }
+    }
+
     addDec(name,type,kind,env=this.global) {
         if(env.isDefined(name)) {
             // if(!equal(type,env.type(name))) {
