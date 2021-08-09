@@ -1,6 +1,6 @@
 const { sum } = require("styp");
 const { equal } = require("saman");
-const { toktypes, n_chmap } = require("./tokens");
+const { toktypes, n_chmap, kw_map } = require("./tokens");
 const ast = require("./ast");
 const SymbolTable = require("./symtab");
 
@@ -111,7 +111,7 @@ class TypeChecker {
     hoistDecs(darr,env) {
         for(let dec of darr) {
             // console.log("haul it!");
-            console.log(dec.toString());
+            // console.log(dec.toString());
             if(ast.exportdef.is(dec)) dec = dec = Array.isArray(dec.decl)?dec.decl[0]:dec.decl;;
             if(ast.constdef.is(dec)) {
                 this.addDec(dec.iden,dec.type,"constant",env);
@@ -213,6 +213,7 @@ class TypeChecker {
     }
 
     chForDef(fd,env) {
+        if(fd.exps[0]) this.hoistDecs([fd.exps[0]],env);
         const ft = fd.exps.map(e => e?this.check(e,env):e);
         if(types.i32.is(ft[1]) || types.intConstant.is(ft[1])) return this.check(fd.body,env);
         typeMismatchError("Expected i32",type);
@@ -236,7 +237,6 @@ class TypeChecker {
         const fun = this.check(fc.func,env);
         if(types.func.is(fun)) {
             const atypes = fc.args.map(a => this.check(a,env));
-            // add type constant checking clause
             if(fun.params.length === 0 && atypes.length === 0 ||
                this.equalT(fun.params,atypes)) return fun.ret;
             throw new Error("Param mismatch");
@@ -251,17 +251,17 @@ class TypeChecker {
         return op.op;
       }
       if(this.isInteger(type) || this.isFloat(type)) {
-          if(op.op.value === "not") {
+          if(op.op.value === kw_map.not) {
               if(types.i32.is(type) || types.intConstant.is(type)) {
                 op.type.push(type);
                 return types.i32;
               }
-              typeMismatchError("bool or i32", type);
+              typeMismatchError("requires bool or i32", type);
           }
           op.type.push(type);
           return type;
       }
-      typeMismatchError("integer or float", type);
+      typeMismatchError("requires integer or float", type);
     }
 
     chBinary(op,env) {
@@ -298,7 +298,7 @@ class TypeChecker {
         const type = env.type(env.func).ret;
         if(!types.void.is(type) && rd.exp) {
             const et = this.check(rd.exp,env);
-            if(type.equal(et)) return et;
+            if(type.equal(et)) return type;
             typeMismatchError(type,et);
         }
     }
@@ -308,6 +308,7 @@ class TypeChecker {
     }
 
     chBlockDef(b,env) {
+        this.hoistDecs(b.statements,env);
         return b.statements.map(s => this.check(s,env));
     }
 

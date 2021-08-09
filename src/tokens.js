@@ -10,7 +10,7 @@ const toktypes = {
     // string:"strConstant",
     // bool:"boolConstant",
     whitespace:"whitespace",
-    symbol:"symbol",
+    operator:"operator",
     identifier:"identifier",
     keyword:"keyword",
 };

@@ -7,4 +7,7 @@ console.log(instance.exports.y.value);
 console.log(instance.exports.f1(0, 20));
 console.log(instance.exports.test2());
 console.log(instance.exports.f2());
+console.log(instance.exports.times(1,5));
+console.log(instance.exports.test(2));
+console.log(instance.exports.test3(5));
 console.log(instance.exports.factorial(5));

@@ -15,20 +15,18 @@ class Tokenizer {
     }
 
     static isNumber(c) {
-        console.log("here")
-        console.log(c)
-        return c.match(/[0-9]/)?true:false;
+        return c.match(/[0-9]/);
     }    
 
     static isAlphabet(c) {
-        return c.match(/[A-Za-z]/)?true:false;
+        return c.match(/[A-Za-z]/);
     }
 
     constructor(code) {
-        this.reset(code);
+        this.init(code);
     }
 
-    reset(code) {
+    init(code) {
         this.code = code;
         this.lines = code.split("\n");
         this.tbuff = [];
@@ -142,28 +140,33 @@ class Tokenizer {
         return this.createtok(toktypes.integer,parseInt(n));
     }
 
-    symbols() {
+    operators() {
         this.curr++;
         // add all the multichar ops!!!
         if(this.ch === n_chmap.BANG && this.code[this.curr] === n_chmap.ASSGN) 
-            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.NEQ);
+            return ++this.curr && this.createtok(toktypes.operator, n_chmap.NEQ);
         if(this.ch === n_chmap.GT && this.code[this.curr] === n_chmap.ASSGN) 
-            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.GTE);
+            return ++this.curr && this.createtok(toktypes.operator, n_chmap.GTE);
         if(this.ch === n_chmap.LT && this.code[this.curr] === n_chmap.ASSGN) 
-            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.LTE);
+            return ++this.curr && this.createtok(toktypes.operator, n_chmap.LTE);
         if(this.ch === n_chmap.ASSGN && this.code[this.curr] === n_chmap.ASSGN) 
-            return ++this.curr && this.createtok(toktypes.symbol, n_chmap.EQ);
-        return this.createtok(toktypes.symbol, this.ch);
+            return ++this.curr && this.createtok(toktypes.operator, n_chmap.EQ);
+        return this.createtok(toktypes.operator, this.ch);
     }
 
     iden_kw() {
         let n = "" + this.ch;
         this.ch = this.code[++this.curr];
-        while (Tokenizer.isAlphabet(this.ch) || Tokenizer.isNumber(this.ch) || this.ch == n_chmap.UNDERSCORE) {
+        while (
+            Tokenizer.isAlphabet(this.ch) ||
+            Tokenizer.isNumber(this.ch) || 
+            this.ch == n_chmap.UNDERSCORE
+        ) {
             n += this.ch;
             this.ch = this.code[++this.curr];
         }
-        if (keywords.includes(n)) return this.createtok(toktypes.keyword, n)
+        if (keywords.includes(n)) 
+            return this.createtok(toktypes.keyword, n);
         else return this.createtok(toktypes.identifier, n);
     }
 
@@ -206,8 +209,6 @@ class Tokenizer {
     }
 
     tokenize() {
-        console.log("in tokenizer");
-        console.log(this.code);
         if (this.curr < this.code.length) {
             this.ch = this.code[this.curr];
             if (this.ch === n_chmap.SLASH && 
@@ -216,9 +217,9 @@ class Tokenizer {
                 this.code[this.curr+1] === n_chmap.STAR) this.mlinecomment();
             if (this.ch === n_chmap.NL) return this.newline();
             if (Tokenizer.isWhite(this.ch)) return this.whitespace();
-            if (this.ch === n_chmap.SQUO) return this.char();
-            if (this.ch === n_chmap.DQUO) return this.string();
-            if (symbols.includes(this.ch)) return this.symbols();
+            // if (this.ch === n_chmap.SQUO) return this.char();
+            // if (this.ch === n_chmap.DQUO) return this.string();
+            if (symbols.includes(this.ch)) return this.operators();
             if (Tokenizer.isNumber(this.ch)) return this.number();
             if (Tokenizer.isAlphabet(this.ch) || this.ch === n_chmap.UNDERSCORE) return this.iden_kw();
             this.unknown_ch();

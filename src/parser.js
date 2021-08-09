@@ -51,15 +51,8 @@ const prec = {
 };
 
 class Parser {
-    constructor(code) {
-        console.log("constructor");
-        if(code) this.setup(code);
-    }
-
-    setup(code) {
-        console.log("setup");
-        this.code = code;
-        this.tok = new Tokenizer(code);
+    constructor(tok) {
+        this.tok = tok;
     }
 
     eatWhitespace() {
@@ -80,9 +73,9 @@ class Parser {
         this.tok.generate_error(curr, `Expected ${type?type:""} ${val}`,context);
     }
 
-    parse(code) {
-        if(code) this.setup(code);
-        return this.parseModule();
+    parse(tok) {
+        if(tok) this.tok = tok;
+        return this.parseTop();
         // throw new Error("No code given!");
     }
 
@@ -103,7 +96,7 @@ class Parser {
         this.tok.generate_error(curr,"Expected a type");
     }
 
-    parseVarDec(dtype) {
+    parseVarDec(dtype,exp=false) {
         this.expect(dtype);
         let curr = this.tok.peek(0);
         const vars = [];
@@ -137,7 +130,7 @@ class Parser {
             }
             else break
         }
-        this.expect(n_chmap.SEMICOLON);
+        if(!exp) this.expect(n_chmap.SEMICOLON);
         return vars.length === 1? vars[0]:vars;
     }
 
@@ -258,9 +251,10 @@ class Parser {
         console.log("before expressions");
         let curr = this.tok.peek(0);
         for(let i = 0;i < 3;i++) {
-            console.log(curr);
             if(curr.value === n_chmap.SEMICOLON)
                 exps.push(i==1?ast.constant(1,types.i32):null)
+            if(i == 0 && curr.value === kw_map.let) 
+                exps.push(this.parseVarDec(curr.value,true));
             else exps.push(this.parseExpression());
             if(i < 2) {
                 this.eatWhitespace();
@@ -400,7 +394,7 @@ class Parser {
         // if(curr.value === kw_map.import) return this.parseImport();
     }
 
-    parseModule() {
+    parseTop() {
         this.eatWhitespace();
         let curr = this.tok.peek(0);
         let module = [];
@@ -467,6 +461,7 @@ class Parser {
         if(uop.includes(curr.value)) {
             const op = this.expect(curr.value);
             const e = this.parseTerm();
+            if(ast.constant.is(e) && op.value === n_chmap.SUB) return ast.constant(-e.value,e.type);
             return ast.unary(op,e,[]);
         }
         if(curr.type === toktypes.integer)
