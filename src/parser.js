@@ -248,7 +248,6 @@ class Parser {
         let start = this.expect(n_chmap.LPAREN);
         this.eatWhitespace();
         const exps = [];
-        console.log("before expressions");
         let curr = this.tok.peek(0);
         for(let i = 0;i < 3;i++) {
             if(curr.value === n_chmap.SEMICOLON)
@@ -263,8 +262,6 @@ class Parser {
             this.eatWhitespace();
             curr = this.tok.peek(0);
         }
-        console.log("after expressions");
-        console.log(exps);
         this.eatWhitespace();
         this.expect(n_chmap.RPAREN,false,start);
         this.eatWhitespace();

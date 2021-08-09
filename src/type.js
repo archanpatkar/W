@@ -265,21 +265,15 @@ class TypeChecker {
     }
 
     chBinary(op,env) {
-        // put assgn in parseTerm
         if(op.op.value === n_chmap.ASSGN) {
             this.lvalue(op.left,env);
-            // const lk = 
-            // if(lk) {
                 const lt = this.check(op.left,env);
                 const rv = this.check(op.right,env);
-                // add literal typing clause
                 if(lt.equal(rv)) {
                     op.type.push(rv);
                     return rv;
                 } 
                 typeMismatchError(lt,rv);
-            // }
-            // throw new Error("Not a l-value");
         }
         else {
             const ls = this.check(op.right,env);

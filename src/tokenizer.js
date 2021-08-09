@@ -142,7 +142,6 @@ class Tokenizer {
 
     operators() {
         this.curr++;
-        // add all the multichar ops!!!
         if(this.ch === n_chmap.BANG && this.code[this.curr] === n_chmap.ASSGN) 
             return ++this.curr && this.createtok(toktypes.operator, n_chmap.NEQ);
         if(this.ch === n_chmap.GT && this.code[this.curr] === n_chmap.ASSGN) 
@@ -192,7 +191,6 @@ class Tokenizer {
     mlinecomment() {
         this.curr += 2;
         this.ch = this.code[this.curr];
-        console.log(this.ch);
         while(
             (this.curr < this.code.length) && 
             (this.ch !== n_chmap.STAR) && 
@@ -217,8 +215,8 @@ class Tokenizer {
                 this.code[this.curr+1] === n_chmap.STAR) this.mlinecomment();
             if (this.ch === n_chmap.NL) return this.newline();
             if (Tokenizer.isWhite(this.ch)) return this.whitespace();
-            // if (this.ch === n_chmap.SQUO) return this.char();
-            // if (this.ch === n_chmap.DQUO) return this.string();
+            //if (this.ch === n_chmap.SQUO) return this.char();
+            //if (this.ch === n_chmap.DQUO) return this.string();
             if (symbols.includes(this.ch)) return this.operators();
             if (Tokenizer.isNumber(this.ch)) return this.number();
             if (Tokenizer.isAlphabet(this.ch) || this.ch === n_chmap.UNDERSCORE) return this.iden_kw();

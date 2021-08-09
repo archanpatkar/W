@@ -307,10 +307,7 @@ class CodeGen {
   }
 
   genFuncCall(fc, env) {
-    // console.log("generating function call");
-    // console.log(fc)
     const ftype = this.global.type(fc.func.name);
-
     return this.module.call(
       fc.func.name,
       fc.args.map((a,i) => {
@@ -340,32 +337,18 @@ class CodeGen {
   }
 
   genBinary(op, env) {
-    // put assgn in parseTerm
     const wt = this.wasmType(op.type[0]);
-    // console.log("expression type")
-    // console.log(wt);
-    // console.log(op);
     let right = this.subgen(op.right, env);
-    // console.log("right after sub")
-    // console.log(right);
     if (ast.constant.is(right)) right = wt.const(right.value);
     if (op.op.value === n_chmap.ASSGN) {
-      // console.log("here in binary!");
-      // console.log(op);
       if (env !== this.global && env.isDefined(op.left.name)) {
         const kind = env.kind(op.left.name);
         let index = env.absIndex(op.left.name);
         if (kind === "var") index += env.total("arg");
-        // console.log("index: " + index);
-        // console.log("right: " + right);
         let temp = this.module.local.set(index, right);
-        // console.log("after");
         return temp;
       }
       else {
-        // console.log("global testing");
-        // console.log(op.left.name);
-        // console.log(right);
         return this.module.global.set(op.left.name, right);
       }
     }
