@@ -48,10 +48,17 @@ export fn times(n: i32,m: i32): i32 {
 }
 
 export fn factorial(n: i32): i32 {
-  if(n == 0) {
+  if(n == 1) {
     return 1;
   }
   return n * factorial(n-1);
+}
+
+export fn fibo(n: i32): i32 {
+  if(n <= 1) {
+    return n;
+  }
+  return fibo(n-1) + fibo(n-2);
 }
 
 export fn f2():f32 {
