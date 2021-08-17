@@ -252,7 +252,7 @@ class Parser {
         for(let i = 0;i < 3;i++) {
             if(curr.value === n_chmap.SEMICOLON)
                 exps.push(i==1?ast.constant(1,types.i32):null)
-            if(i == 0 && curr.value === kw_map.let) 
+            else if(i == 0 && curr.value === kw_map.let) 
                 exps.push(this.parseVarDec(curr.value,true));
             else exps.push(this.parseExpression());
             if(i < 2) {
