@@ -23,7 +23,7 @@
     "jest": "^27.3.0",
     "standard": "^16.0.4",
     "webpack": "^5.58.2",
-    "webpack-cli": "^4.9.0"
+    "webpack-cli": "^4.9.1"
   },
   "dependencies": {
     "binaryen": "^102.0.0",
