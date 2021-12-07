@@ -22,7 +22,7 @@
   "devDependencies": {
     "jest": "^27.4.3",
     "standard": "^16.0.4",
-    "webpack": "^5.64.4",
+    "webpack": "^5.65.0",
     "webpack-cli": "^4.9.1"
   },
   "dependencies": {
